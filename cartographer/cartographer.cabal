@@ -19,6 +19,6 @@ library
   exposed-modules:     Data.Hypergraph
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       base, containers
+  build-depends:       base, containers, linear
   hs-source-dirs:      src
   default-language:    Haskell2010

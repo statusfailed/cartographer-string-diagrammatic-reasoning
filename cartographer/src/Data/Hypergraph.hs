@@ -11,6 +11,8 @@ import Data.Foldable
 data HyperEdgeId = HyperEdgeId
   deriving(Eq, Ord, Read, Show)
 
+data Boundary = ([Vertex], [Vertex])
+
 -- | The 'Hypergraph' type ... ?
 --
 -- NB: This type does not insist that every edge is connected to a node;
@@ -25,23 +27,28 @@ data Hypergraph = Hypergraph
   , hyperedges :: Map Vertex HyperEdgeId
   -- ^ Which hyperedge a vertex belongs to.
   -- A 'Vertex' not in this map is a node.
+  , boundary   :: Boundary
   } deriving(Eq, Ord, Read, Show)
 
 -- v `isEdgeOf` g returns True iff v is a hyperedge in the hypergraph g.
 isHyperEdge :: Hypergraph -> Vertex -> Bool
 isHyperEdge g v = Map.member v (hyperedges g)
 
+-- | All the vertices in the graph which correspond to Nodes (as opposed to
+-- hyper-edges)
 nodes :: Hypergraph -> [Vertex]
 nodes g = filter (not . isHyperEdge g)  . vertices . underlying $ g
 
--- | Add an edge, but don't connect.
+-- | Add an edge, but don't connect it to anything.
+-- This creates a n * m fully-connected bipartite graph, which is inserted into
+-- the underlying graph.
 addEdge :: HyperEdgeId -> Hypergraph -> Hypergraph
 addEdge e g = undefined
 
 -- | connect two edges together by a specified port.  This amounts to inserting
 -- a node into the hypergraph which is connected to a port of each hyperedge
 --
--- NOTE: this function will verify that:
+-- NOTE: this function connects two  will verify that:
 --   1) 
 connect :: Vertex -> Vertex -> Hypergraph -> Hypergraph
 connect = undefined
