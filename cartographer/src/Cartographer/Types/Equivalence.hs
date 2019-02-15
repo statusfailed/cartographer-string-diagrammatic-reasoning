@@ -56,3 +56,16 @@ classOf a = Map.lookup a . _equivalenceClass
 -- | Return all the members of a class, if any.
 membersOf :: Ord c => c -> Equivalence a c -> Set a
 membersOf c = maybe Set.empty id . Map.lookup c . _equivalenceMembers
+
+-- TODO
+-- | Remove all elements matching a predicate from the Equivalence.
+filterElems
+  :: (Ord a, Ord c) => (a -> Bool) -> Equivalence a c -> Equivalence a c
+filterElems f (Equivalence cls members) = Equivalence keep members'
+  where
+    (keep, discard) = Map.partitionWithKey (\a _ ->  f a) cls
+    -- for each class, remove any "removed elements" from its set of elements.
+    -- NOTE TODO: this is very inefficient; we don't need to fmap- there's no
+    -- need to affect all the keys, just the ones that were deleted.
+    deleted = Set.fromList (fmap fst . Map.toList $ discard)
+    members' = fmap (flip Set.difference deleted) members
