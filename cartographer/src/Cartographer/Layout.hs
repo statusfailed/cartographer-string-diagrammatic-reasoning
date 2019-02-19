@@ -26,7 +26,7 @@ fromLayerOffset (Layer i) (Offset j) = V2 i j
 
 -- | a 'Hypergraph' plus the additional information needed to display it laid
 -- out in 2D.
--- NOTE that we 
+-- NOTE that we
 data Layout sig = Layout
   { hypergraph :: Hypergraph
   -- ^ the underlying hypergraph to be laid out
@@ -45,9 +45,11 @@ data Layout sig = Layout
   -- ^ Next free ID to add a HyperEdge.
   } deriving(Eq, Ord, Read, Show)
 
+-- TODO: can't easily have empty layout because of underlying graph problem
+-- (i.e. no empty arrays allowed :|)
 empty :: Layout sig
 empty = Layout
-  { hypergraph      = Hypergraph.empty
+  { hypergraph      = Hypergraph.identity
   , signatures      = Map.empty
   , positions       = Grid.empty
   , nextHyperEdgeId = 0
@@ -106,16 +108,16 @@ addBoundaryNode = undefined
   -- Hypergraph.addBoundaryNode
 
 -- Collision resolution for a generator of tileHeight n placed at position p:
---  * Check if p is occupied by another 
---  * 
+--  * Check if p is occupied by another
+--  *
 --  1) Examine y-positions p, p+1, ... p+n
---  2) If any of those positions 
+--  2) If any of those positions
 
 -------------------------------
 -- Post-MVP functionality
 
 -- | Set a hyperedge's position.
--- 
+--
 -- Suppose an edge e has a parent p, and the user requests to move edge e to
 -- layer x.
 -- If L(e) >= x, then disconnect e from p.

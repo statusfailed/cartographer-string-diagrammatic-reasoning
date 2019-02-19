@@ -16,10 +16,10 @@ extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Data.Hypergraph
+  exposed-modules:     Cartographer.Layout
                      , Cartographer.Types.Equivalence
                      , Cartographer.Types.Grid
-                     , Cartographer.Layout
+                     , Data.Hypergraph
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base, array, containers, linear
