@@ -17,8 +17,11 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Data.Hypergraph
+                     , Cartographer.Types.Equivalence
+                     , Cartographer.Types.Grid
+                     , Cartographer.Layout
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       base, containers, linear
+  build-depends:       base, array, containers, linear
   hs-source-dirs:      src
   default-language:    Haskell2010

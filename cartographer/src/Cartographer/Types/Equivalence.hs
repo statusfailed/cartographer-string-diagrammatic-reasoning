@@ -26,6 +26,12 @@ empty = Equivalence Map.empty Map.empty
 fromList :: (Ord c, Ord a) => [(a,c)] -> Equivalence a c
 fromList = foldr (uncurry equate) empty
 
+-- Merge two equivalences.
+-- This is right-biased, so if an element 'a' appears in both the left and
+-- right equivalences, the right equivalence's class will be taken.
+merge :: Equivalence a c -> Equivalence a c -> Equivalence a c
+merge eqa eqb = undefined
+
 -- | Remove an element from the equivalence
 -- If the element is not present, do nothing.
 delete :: (Ord a, Ord c) => a -> Equivalence a c -> Equivalence a c
@@ -69,3 +75,11 @@ filterElems f (Equivalence cls members) = Equivalence keep members'
     -- need to affect all the keys, just the ones that were deleted.
     deleted = Set.fromList (fmap fst . Map.toList $ discard)
     members' = fmap (flip Set.difference deleted) members
+
+-- | NOTE: uses mapKeysMonotonic on the underlying maps, which means that
+-- the supplied function must obey the condition that x < y => f x < f y.
+-- /this condition is not checked/.
+mapElemsMonotonic :: Ord a => (a -> b) -> Equivalence a c -> Equivalence b c
+mapElemsMonotonic f (Equivalence cls members) = Equivalence
+  (Map.mapKeysMonotonic f cls)
+  undefined -- TODO: finish this function
