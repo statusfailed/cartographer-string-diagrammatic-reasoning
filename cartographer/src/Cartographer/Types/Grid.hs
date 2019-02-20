@@ -49,6 +49,7 @@ placeTile t h v (Grid g) = Grid (Equivalence.merge g updates)
   where
     -- All positions occupied by the tile
     vs    = [ v + V2 0 (unHeight y) | y <- [0..h] ]
+
     -- all the positions occupied by the new tile
     delta = Equivalence.fromList (fmap (,t) vs)
 

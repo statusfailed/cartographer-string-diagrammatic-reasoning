@@ -52,7 +52,7 @@ data Hypergraph = Hypergraph
 identity :: Hypergraph
 identity = Hypergraph
   { underlying    = Array.listArray (0,0) [[]]
-  -- ^ graph with one node and no edges
+  -- graph with one node and no edges
   , hyperedges    = Map.empty
   , boundary      = (Seq.singleton 0, Seq.singleton 0)
   , nextVertexId  = 1

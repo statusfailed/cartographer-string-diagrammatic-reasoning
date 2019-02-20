@@ -36,7 +36,7 @@ data Layout sig = Layout
   -- ^ Position of each HyperEdge in the layout.
 
   -- , portMap    :: Map (HyperEdgeId, Port) Vertex
-  -- ^ mapping between ports and vertices in the underlying graph
+  -- mapping between ports and vertices in the underlying graph
   -- TODO: put this in the Hypergraph type, or make them sequential, i.e.
   -- a generator of type (n, m) will have n+m vertices, numbered 0..n+m?
 
@@ -75,17 +75,17 @@ placeGenerator s dims height i o l = (nextId, l') where
   nextId = succ edgeId
   l' = Layout
     { hypergraph = Hypergraph.addEdge edgeId dims (hypergraph l)
-    -- ^ Add new edgeId to hypergraph
+    -- Add new edgeId to hypergraph
 
     , signatures = signatures l
-    -- ^ Add signature to signatures
+    -- Add signature to signatures
 
     , positions =
         Grid.placeTile edgeId height (fromLayerOffset i o) (positions l)
-    -- ^ Finally, placeTile in Grid to update positions.
+    -- Finally, placeTile in Grid to update positions.
 
     , nextHyperEdgeId = nextId
-    -- ^ Assign new HyperEdgeId and return it
+    -- Assign new HyperEdgeId and return it
     }
 
 connectPorts
