@@ -49,6 +49,8 @@ data Hypergraph = Hypergraph
   -- ^ Next "free" vertex Id.
   } deriving(Eq, Ord, Read, Show)
 
+-- | The identity morphism is a hypergraph with a single node, appearing in
+-- both the left and right boundaries.
 identity :: Hypergraph
 identity = Hypergraph
   { underlying    = Array.listArray (0,0) [[]]
@@ -58,6 +60,9 @@ identity = Hypergraph
   , nextVertexId  = 1
   }
 
+-- | The empty hypergraph is the hypergraph with no nodes or edges.
+-- Unfortunately, Data.Array cannot represent an empty array, so this is
+-- actually unrepresentable as a 'Hypergraph'!
 empty :: Hypergraph
 empty = error "TODO: underlying empty graph" $ Hypergraph
   { underlying    = undefined
