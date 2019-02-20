@@ -9,7 +9,7 @@ module Cartographer.Types.Grid where
 
 import Linear.V2
 
-import Cartographer.Types.Equivalence (Equivalence)
+import Cartographer.Types.Equivalence (Equivalence(..))
 import qualified Cartographer.Types.Equivalence as Equivalence
 
 import Data.Map.Strict (Map)
@@ -29,6 +29,11 @@ data Grid tile = Grid
   { _gridPositions :: Equivalence Position tile
   }
   deriving(Eq, Ord, Read, Show)
+
+dimensions :: Grid tile -> V2 Int
+dimensions (Grid (Equivalence cls _)) =
+  foldl f (V2 0 0) . fmap fst $ Map.toList cls
+  where f (V2 mx my) (V2 x y) = V2 (max mx x) (max my y)
 
 empty :: Grid tile
 empty = Grid Equivalence.empty

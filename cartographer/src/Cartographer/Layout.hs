@@ -49,11 +49,16 @@ data Layout sig = Layout
 -- (i.e. no empty arrays allowed :|)
 empty :: Layout sig
 empty = Layout
-  { hypergraph      = Hypergraph.identity
+  { hypergraph      = Hypergraph.identity -- TODO?
   , signatures      = Map.empty
   , positions       = Grid.empty
   , nextHyperEdgeId = 0
   }
+
+-- | Width/Height of the Layout in tiles
+-- TODO: don't use a fixed "buffer" of 5 for all tiles' heights!
+dimensions :: Layout sig -> V2 Int
+dimensions = Grid.dimensions . positions
 
 -- | Insert a generator into a specific layer, at a particular offset.
 -- If it would overlap with another generator, the generators are shifted down.
