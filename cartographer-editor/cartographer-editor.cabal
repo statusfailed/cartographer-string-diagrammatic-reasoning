@@ -19,6 +19,6 @@ executable cartographer-editor
   main-is:             Main.hs
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       base, linear, containers >= 0.5.11, cartographer
+  build-depends:       base, miso, linear, containers >= 0.5.11, cartographer
   hs-source-dirs:      src
   default-language:    Haskell2010

@@ -5,6 +5,6 @@ mkDerivation {
   src = ./.;
   isLibrary = false;
   isExecutable = true;
-  executableHaskellDepends = [ base containers linear cartographer ];
+  executableHaskellDepends = [ base miso containers linear cartographer ];
   license = stdenv.lib.licenses.mit;
 }
