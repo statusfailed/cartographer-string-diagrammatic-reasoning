@@ -15,6 +15,7 @@ import qualified Cartographer.Types.Equivalence as Equivalence
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
+import Data.Foldable (minimum)
 import Data.Maybe (isJust)
 
 type Position = V2 Int
@@ -41,23 +42,29 @@ empty = Grid Equivalence.empty
 -- | Insert columns, by simply shifting all tiles in columns >= the specified
 -- column up by a specified amount.
 shiftY
-  :: Int -- ^ y coords >= this value will be shifted up by a specified amount.
+  :: Ord tile
+  => Int -- ^ y coords >= this value will be shifted up by a specified amount.
   -> Int -- ^ Amount to increment by
   -> Grid tile
   -> Grid tile
-shiftY i dy (Grid m) = Grid (Equivalence.mapElemsMonotonic f m)
+shiftY i dy (Grid m) = Grid (Equivalence.mapElems f m)
   where f v@(V2 x y) = if y < i then v else V2 x (y+dy)
 
+-- | Shift tiles in a layer above a certain offset by a specified amount.
+--
+-- numEdges g == numEdges (shiftOffset v i g)
 shiftOffset
-  :: V2 Int -- ^ Layer (x) and Offset (y)
+  :: Ord tile
+  => V2 Int -- ^ Layer (x) and Offset (y)
   -> Int    -- ^ shift by this amount
   -> Grid tile
   -> Grid tile
-shiftOffset (V2 x y) dy (Grid eq) = Grid (Equivalence.mapElemsMonotonic f eq)
+shiftOffset (V2 x y) dy (Grid eq) = Grid (Equivalence.mapElems f eq)
   where
+    -- NOTE: f must be injective (required by mapElems)
     f v@(V2 x' y')
-      | x /= x' = v
-      | otherwise = if y' < y then v else V2 x (y + dy)
+      | x == x' && y' >= y = V2 x' (y' + dy)
+      | otherwise          = v
 
 -- | Place a tile at a particular position.
 -- If this causes overlap, other tiles in the same layer (y-coordinate) will be
@@ -78,7 +85,7 @@ placeTile tile h v grid@(Grid eq) =
 
   where
     -- All positions that will be occupied by the new tile.
-    vs = [ v + V2 0 y | y <- [0..unHeight h] ]
+    vs = [ v + V2 0 y | y <- [0..unHeight h - 1] ]
 
     -- Contents of each of those positions
     contents = fmap (\x -> (x, Equivalence.classOf x eq)) vs
@@ -89,5 +96,10 @@ placeTile tile h v grid@(Grid eq) =
 
 -- Get the top-most position of each tile in the grid
 -- (i.e., the position of its topmost tile).
+--
+-- NOTE: this is technically unsafe; if the set is empty, then it will crash
+-- because minimum is partial.
+-- However, the Equivalence should ensure that there are no empty classes in
+-- the Equivalence.
 positions :: Ord tile => Grid tile -> Map tile Position
-positions g = undefined
+positions = fmap minimum . _equivalenceMembers . _gridPositions

@@ -1,7 +1,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+-- | The main interface for editing a Hypergraph via a UI.
+-- the 'Layout' type includes position and pseudonode information for each
+-- hyperedgein the graph, and provides methods for safely making changes to the underlying graph.
+--
+-- /This module is intended to be imported qualified./
 module Cartographer.Layout where
 
-import Data.Map.Strict (Map)
+import Data.Map.Strict (Map, (!))
 import qualified Data.Map.Strict as Map
 
 import Linear.V2
@@ -60,6 +65,14 @@ empty = Layout
 dimensions :: Layout sig -> V2 Int
 dimensions = Grid.dimensions . positions
 
+-- TODO: consider if this is the right interface.
+-- NOTE: Leaving unsafe use of ! in the datastructure, because if it ever
+-- fails then there are bugs elsewhere!
+positioned :: Ord sig => Layout sig -> [(sig, Position)]
+positioned layout
+  = fmap lookupSigs . Map.toList . Grid.positions . positions $ layout
+  where lookupSigs (edgeId, pos) = (signatures layout ! edgeId, pos)
+
 -- | Insert a generator into a specific layer, at a particular offset.
 -- If it would overlap with another generator, the generators are shifted down.
 placeGenerator
@@ -75,14 +88,14 @@ placeGenerator
   -- ^ At what offset?
   -> Layout sig
   -> (HyperEdgeId, Layout sig)
-placeGenerator s dims height i o l = (nextId, l') where
+placeGenerator sig dims height i o l = (nextId, l') where
   edgeId = nextHyperEdgeId l
   nextId = succ edgeId
   l' = Layout
     { hypergraph = Hypergraph.addEdge edgeId dims (hypergraph l)
     -- Add new edgeId to hypergraph
 
-    , signatures = signatures l
+    , signatures = Map.insert edgeId sig (signatures l)
     -- Add signature to signatures
 
     , positions =

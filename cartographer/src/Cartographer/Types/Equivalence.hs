@@ -37,7 +37,14 @@ merge eqa eqb = undefined
 delete :: (Ord a, Ord c) => a -> Equivalence a c -> Equivalence a c
 delete a eq@(Equivalence cls members) = case Map.lookup a cls of
   Nothing -> eq
-  Just c -> Equivalence (Map.delete a cls) (Map.adjust (Set.delete a) c members)
+  Just c -> Equivalence (Map.delete a cls) (Map.alter f c members)
+
+  where
+    -- Delete a member from a set, and then delete the set if it's empty.
+    f Nothing = Nothing
+    f (Just members) =
+      let r = Set.delete a members
+      in  if Set.null r then Nothing else Just r
 
 -- | Put 'a' into the equivalence class 'c'
 -- NOTE: to ensure that the Equivalence remains a partition,
@@ -60,6 +67,9 @@ classOf :: Ord a => a -> Equivalence a c -> Maybe c
 classOf a = Map.lookup a . _equivalenceClass
 
 -- | Return all the members of a class, if any.
+-- NOTE: this uses the empty set to denote that a class was not present in the
+-- Equivalence.
+-- Return type could be written Maybe (NonEmpty Set)
 membersOf :: Ord c => c -> Equivalence a c -> Set a
 membersOf c = maybe Set.empty id . Map.lookup c . _equivalenceMembers
 
@@ -76,10 +86,15 @@ filterElems f (Equivalence cls members) = Equivalence keep members'
     deleted = Set.fromList (fmap fst . Map.toList $ discard)
     members' = fmap (flip Set.difference deleted) members
 
--- | NOTE: uses mapKeysMonotonic on the underlying maps, which means that
--- the supplied function must obey the condition that x < y => f x < f y.
--- /this condition is not checked/.
-mapElemsMonotonic :: Ord a => (a -> b) -> Equivalence a c -> Equivalence b c
-mapElemsMonotonic f (Equivalence cls members) = Equivalence
-  (Map.mapKeysMonotonic f cls)
-  undefined -- TODO: finish this function
+-- | Map over each element in the equivalence, while maintaining its class.
+-- The supplied function must be injective, i.e. x != y => f x != f y
+-- /This condition is not checked/.
+-- This function rebuilds the entire equvalence, so its complexity is
+-- O(n log n)
+mapElems
+  :: (Ord a, Ord b, Ord c) => (a -> b) -> Equivalence a c -> Equivalence b c
+mapElems f
+  = fromList
+  . fmap (\(a,c) -> (f a, c))
+  . Map.toList
+  . _equivalenceClass
