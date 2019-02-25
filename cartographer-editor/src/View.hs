@@ -31,7 +31,7 @@ viewLayout layout opts@(ViewOptions tileSize) =
     style : gridLines unitSize (fromIntegral <$> dims) : renderedGenerators
   where
     unitSize = fromIntegral tileSize
-    sz = V2 tileSize tileSize
+    sz = V2 tileSize tileSize * V2 2 1 -- double width to accomodate connectors
     dims@(V2 imgWidth imgHeight) = sz * (Layout.dimensions layout + V2 1 1)
     svgAttrs = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
     style = Svg.style_ [Svg.type_' "text/css"] [staticCss]
@@ -68,7 +68,7 @@ viewGenerator
   -> ViewOptions
   -> View action
 viewGenerator g@(Generator size ports color name) pos' (ViewOptions tileSize) =
-  let pos = pos' -- * (V2 2 0)
+  let pos = pos' * (V2 2 1)
       unitSize = fromIntegral tileSize
       height = unitSize * fromIntegral (tileHeight g) :: Double
       width  = unitSize
