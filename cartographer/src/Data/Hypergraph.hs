@@ -147,5 +147,7 @@ removeBoundaryNode v g = undefined
 -- Predicates
 
 -- | Check if the hyperedges in a hypergraph are all connected to nodes.
+-- That is, every vertex corresponding to a hyperedge port is connected to a
+-- vertex.
 connected :: Hypergraph -> Bool
 connected g = undefined

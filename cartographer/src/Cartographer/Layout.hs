@@ -88,7 +88,7 @@ placeGenerator
   -- ^ At what offset?
   -> Layout sig
   -> (HyperEdgeId, Layout sig)
-placeGenerator sig dims height i o l = (nextId, l') where
+placeGenerator sig dims height layer offset l = (nextId, l') where
   edgeId = nextHyperEdgeId l
   nextId = succ edgeId
   l' = Layout
@@ -99,7 +99,8 @@ placeGenerator sig dims height i o l = (nextId, l') where
     -- Add signature to signatures
 
     , positions =
-        Grid.placeTile edgeId height (fromLayerOffset i o) (positions l)
+        Grid.placeTile edgeId height
+          (fromLayerOffset layer offset) (positions l)
     -- Finally, placeTile in Grid to update positions.
 
     , nextHyperEdgeId = nextId
@@ -107,8 +108,10 @@ placeGenerator sig dims height i o l = (nextId, l') where
     }
 
 connectPorts
-  :: Hypergraph.Port -- ^ Source
-  -> Hypergraph.Port -- ^ Target
+  :: Hypergraph.Port
+  -- ^ Source. Either a LEFT Boundary node, or a RHS port of a hyperedge
+  -> Hypergraph.Port
+  -- ^ Target. Either a RIGHT Boundary node, or a LHS port of a hyperedge
   -> Layout sig
   -> Layout sig
 connectPorts s t l = undefined

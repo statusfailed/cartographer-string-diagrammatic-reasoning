@@ -89,8 +89,8 @@ filterElems f (Equivalence cls members) = Equivalence keep members'
 -- | Map over each element in the equivalence, while maintaining its class.
 -- The supplied function must be injective, i.e. x != y => f x != f y
 -- /This condition is not checked/.
--- This function rebuilds the entire equvalence, so its complexity is
--- O(n log n)
+-- This function rebuilds the entire equivalence, so its complexity is
+-- /O(n log n)/
 mapElems
   :: (Ord a, Ord b, Ord c) => (a -> b) -> Equivalence a c -> Equivalence b c
 mapElems f
