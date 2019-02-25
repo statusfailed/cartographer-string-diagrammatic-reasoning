@@ -15,19 +15,19 @@ import Types
 -- Test generators
 
 altId :: Generator
-altId = Generator (1,1) ([0], [0]) "altId"
+altId = Generator (1,1) ([0], [0]) "black" "altId"
 
 py :: Generator
-py = Generator (2, 1) ([0, 2], [1]) "py"
+py = Generator (2, 1) ([0, 2], [1]) "white" "py"
 
 copy :: Generator
-copy = Generator (1, 2) ([1], [0,2]) "copy"
+copy = Generator (1, 2) ([1], [0,2]) "black" "copy"
 
 unit :: Generator
-unit = Generator (0, 1) ([], [0]) "unit"
+unit = Generator (0, 1) ([], [0]) "black" "unit"
 
 counit :: Generator
-counit = Generator (1, 0) ([0], []) "counit"
+counit = Generator (1, 0) ([0], []) "black" "counit"
 
 -------------------------------
 -- Miso code
@@ -37,14 +37,26 @@ type Model = Layout Generator
 
 -- TODO: right now we use the layout with a single 1x1 generator, placed at the
 -- origin, which is 1 grid-square tall.
-emptyModel :: Layout Generator
-emptyModel
+example0 :: Layout Generator
+example0
   = id
   . snd . Layout.placeGenerator unit    (0,1) 1 0 0
   . snd . Layout.placeGenerator copy    (1,2) 3 0 2
   . snd . Layout.placeGenerator py      (2,1) 3 1 0
   . snd . Layout.placeGenerator counit  (1,0) 1 1 4
   $ Layout.empty
+
+example1 :: Layout Generator
+example1
+  = id
+  . snd . Layout.placeGenerator unit    (0,1) 1 0 0
+  . snd . Layout.placeGenerator copy    (1,2) 3 0 2
+  . snd . Layout.placeGenerator py      (2,1) 3 1 0
+  . snd . Layout.placeGenerator counit  (1,0) 1 1 4
+  $ Layout.empty
+
+emptyModel :: Layout Generator
+emptyModel = example1
 
 -- | Sum type for application events
 data Action = Action

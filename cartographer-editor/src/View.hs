@@ -67,8 +67,9 @@ viewGenerator
   -> V2 Int
   -> ViewOptions
   -> View action
-viewGenerator g@(Generator size ports name) pos (ViewOptions tileSize) =
-  let unitSize = fromIntegral tileSize
+viewGenerator g@(Generator size ports color name) pos' (ViewOptions tileSize) =
+  let pos = pos' -- * (V2 2 0)
+      unitSize = fromIntegral tileSize
       height = unitSize * fromIntegral (tileHeight g) :: Double
       width  = unitSize
       v@(V2 x y) = fmap ((*unitSize) . fromIntegral) pos
@@ -90,7 +91,7 @@ viewGenerator g@(Generator size ports name) pos (ViewOptions tileSize) =
       , Svg.g_ [] (fmap (viewGeneratorWire v c unitSize) rports) -- right ports
       , Svg.circle_
         [ Svg.cx_ (ms cx), Svg.cy_ (ms cy), Svg.r_ (ms $ unitSize / 8)
-        , Svg.stroke_ "black", Svg.strokeWidth_ "2" ] []
+        , Svg.stroke_ "black", Svg.strokeWidth_ "2", Svg.fill_ color ] []
       {-, clickTarget index unitSize v-}
       ]
   where
