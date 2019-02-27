@@ -17,14 +17,19 @@ import qualified Data.Hypergraph as Hypergraph
 import Cartographer.Types.Grid (Grid, Position)
 import qualified Cartographer.Types.Grid as Grid
 
-import Cartographer.Types.Equivalence (Equivalence)
-import qualified Cartographer.Types.Equivalence as Equivalence
+import Data.Equivalence (Equivalence)
+import qualified Data.Equivalence as Equivalence
 
 newtype Layer = Layer { unLayer :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
 
 newtype Offset = Offset { unOffset :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
+
+-- | Tiles are user-manipulable 1xN shapes laid out on the grid.
+-- They either
+data Tile = Generator HyperEdgeId | Pseudo Hypergraph.Port Hypergraph.Port
+  deriving(Eq, Ord, Read, Show)
 
 fromLayerOffset :: Layer -> Offset -> V2 Int
 fromLayerOffset (Layer i) (Offset j) = V2 i j
@@ -33,19 +38,12 @@ fromLayerOffset (Layer i) (Offset j) = V2 i j
 -- out in 2D.
 -- NOTE that we
 data Layout sig = Layout
-  { hypergraph :: Hypergraph
+  { hypergraph :: Hypergraph sig
   -- ^ the underlying hypergraph to be laid out
   , signatures :: Map HyperEdgeId sig
   -- ^ "shape" of each hyperedge in the graph (defines number of ports)
   , positions  :: Grid HyperEdgeId
   -- ^ Position of each HyperEdge in the layout.
-
-  -- , portMap    :: Map (HyperEdgeId, Port) Vertex
-  -- mapping between ports and vertices in the underlying graph
-  -- TODO: put this in the Hypergraph type, or make them sequential, i.e.
-  -- a generator of type (n, m) will have n+m vertices, numbered 0..n+m?
-
-  -- next free HyperEdgeId
   , nextHyperEdgeId :: HyperEdgeId
   -- ^ Next free ID to add a HyperEdge.
   } deriving(Eq, Ord, Read, Show)
@@ -76,23 +74,23 @@ positioned layout
 -- | Insert a generator into a specific layer, at a particular offset.
 -- If it would overlap with another generator, the generators are shifted down.
 placeGenerator
-  :: sig
+  :: Hypergraph.Signature sig
+  => sig
   -- ^ What kind of generator?
-  -> (Int, Int)
-  -- ^ ports on left + right boundary.
   -> Grid.Height
-  -- ^ How many grid-squares tall is it?
+  -- ^ How many grid-squares tall is it? (TODO: work this out?)
   -> Layer
   -- ^ What layer to put it in?
   -> Offset
   -- ^ At what offset?
   -> Layout sig
   -> (HyperEdgeId, Layout sig)
-placeGenerator sig dims height layer offset l = (nextId, l') where
+placeGenerator sig height layer offset l = (nextId, l') where
+  dims = Hypergraph.toSize sig
   edgeId = nextHyperEdgeId l
   nextId = succ edgeId
   l' = Layout
-    { hypergraph = Hypergraph.addEdge edgeId dims (hypergraph l)
+    { hypergraph = Hypergraph.addEdge edgeId sig (hypergraph l)
     -- Add new edgeId to hypergraph
 
     , signatures = Map.insert edgeId sig (signatures l)
@@ -107,14 +105,19 @@ placeGenerator sig dims height layer offset l = (nextId, l') where
     -- Assign new HyperEdgeId and return it
     }
 
+-- | connect two hypergraph ports in the layout.
+-- NOTE: returns the original graph unchanged if ports were invalid.
 connectPorts
-  :: Hypergraph.Port
+  :: Hypergraph.Signature sig
+  => Hypergraph.Port
   -- ^ Source. Either a LEFT Boundary node, or a RHS port of a hyperedge
   -> Hypergraph.Port
   -- ^ Target. Either a RIGHT Boundary node, or a LHS port of a hyperedge
   -> Layout sig
   -> Layout sig
-connectPorts s t l = undefined
+connectPorts s t l = case Hypergraph.connect s t (hypergraph l) of
+  Just hg -> l { hypergraph = hg }
+  Nothing -> l
 
 
 -- | Insert a new Layer, corresponding to a new column.

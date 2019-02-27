@@ -17,9 +17,9 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Cartographer.Layout
-                     , Cartographer.Types.Equivalence
                      , Cartographer.Types.Grid
                      , Data.Hypergraph
+                     , Data.Equivalence
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base, array, containers, linear

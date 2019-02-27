@@ -9,8 +9,8 @@ module Cartographer.Types.Grid where
 
 import Linear.V2
 
-import Cartographer.Types.Equivalence (Equivalence(..))
-import qualified Cartographer.Types.Equivalence as Equivalence
+import Data.Equivalence (Equivalence(..))
+import qualified Data.Equivalence as Equivalence
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map

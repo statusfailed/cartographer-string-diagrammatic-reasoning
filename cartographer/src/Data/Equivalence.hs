@@ -1,4 +1,4 @@
-module Cartographer.Types.Equivalence where
+module Data.Equivalence where
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -61,6 +61,10 @@ equateNew a c (Equivalence cls members) = Equivalence
   (Map.alter (updateSet a) c members)
   where
     updateSet c = Just . maybe (Set.singleton c) (Set.insert c)
+
+-- | Is an element a member of the equivalence class?
+member :: Ord a => a -> Equivalence a c -> Bool
+member a = maybe False (const True) . classOf a
 
 -- | Fetch the class of an element, if it has one.
 classOf :: Ord a => a -> Equivalence a c -> Maybe c
