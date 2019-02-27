@@ -1,6 +1,7 @@
 module Types where
 
 import Miso.String (MisoString)
+import Data.Hypergraph
 
 data Generator = Generator
   { size :: (Int, Int)
@@ -8,6 +9,9 @@ data Generator = Generator
   , color :: MisoString
   , name :: MisoString
   } deriving(Eq, Ord, Read, Show)
+
+instance Signature Generator where
+  toSize = size
 
 -- | Height (in tiles) of the generator.
 -- TODO: explain this better.

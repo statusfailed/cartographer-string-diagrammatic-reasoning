@@ -16,8 +16,8 @@ import Linear.V2 (V2(..))
 import Cartographer.Layout (Layout)
 import qualified Cartographer.Layout as Layout
 
-import Cartographer.Types.Equivalence (Equivalence)
-import qualified Cartographer.Types.Equivalence as Equivalence
+import Data.Equivalence (Equivalence)
+import qualified Data.Equivalence as Equivalence
 
 import Types
 

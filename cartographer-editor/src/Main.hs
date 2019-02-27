@@ -8,6 +8,9 @@ import Miso.String
 import Cartographer.Layout (Layout)
 import qualified Cartographer.Layout as Layout
 
+import Data.Hypergraph (Hypergraph)
+import qualified Data.Hypergraph as Hypergraph
+
 import View
 import Types
 
@@ -40,19 +43,20 @@ type Model = Layout Generator
 example0 :: Layout Generator
 example0
   = id
-  . snd . Layout.placeGenerator unit    (0,1) 1 0 0
-  . snd . Layout.placeGenerator copy    (1,2) 3 0 2
-  . snd . Layout.placeGenerator py      (2,1) 3 1 0
-  . snd . Layout.placeGenerator counit  (1,0) 1 1 4
+  . snd . Layout.placeGenerator unit    1 0 0
+  . snd . Layout.placeGenerator copy    3 0 2
+  . snd . Layout.placeGenerator py      3 1 0
+  . snd . Layout.placeGenerator counit  1 1 4
   $ Layout.empty
 
 example1 :: Layout Generator
 example1
   = id
-  . snd . Layout.placeGenerator unit    (0,1) 1 0 0
-  . snd . Layout.placeGenerator copy    (1,2) 3 0 2
-  . snd . Layout.placeGenerator py      (2,1) 3 1 0
-  . snd . Layout.placeGenerator counit  (1,0) 1 1 4
+  . Layout.connectPorts (Hypergraph.Port 3 0) (Hypergraph.Port 1 0)
+  . snd . Layout.placeGenerator unit    1 0 0
+  . snd . Layout.placeGenerator copy    3 0 2
+  . snd . Layout.placeGenerator py      3 1 0
+  . snd . Layout.placeGenerator counit  1 1 4
   $ Layout.empty
 
 emptyModel :: Layout Generator
