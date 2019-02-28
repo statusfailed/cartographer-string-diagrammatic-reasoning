@@ -11,7 +11,8 @@ import qualified Data.Map.Strict as Map
 
 import Linear.V2
 
-import Data.Hypergraph (Hypergraph, HyperEdgeId(..))
+import Data.Hypergraph (
+  Hypergraph, Port(..), Open, OpenHypergraph(..), HyperEdgeId(..))
 import qualified Data.Hypergraph as Hypergraph
 
 import Cartographer.Types.Grid (Grid, Position)
@@ -28,7 +29,9 @@ newtype Offset = Offset { unOffset :: Int }
 
 -- | Tiles are user-manipulable 1xN shapes laid out on the grid.
 -- They either
-data Tile = Generator HyperEdgeId | Pseudo Hypergraph.Port Hypergraph.Port
+data Tile
+  = Generator HyperEdgeId
+  | Pseudo (Port Open) (Port Open)
   deriving(Eq, Ord, Read, Show)
 
 fromLayerOffset :: Layer -> Offset -> V2 Int
@@ -38,22 +41,20 @@ fromLayerOffset (Layer i) (Offset j) = V2 i j
 -- out in 2D.
 -- NOTE that we
 data Layout sig = Layout
-  { hypergraph :: Hypergraph sig
+  { hypergraph :: OpenHypergraph sig
   -- ^ the underlying hypergraph to be laid out
-  , signatures :: Map HyperEdgeId sig
-  -- ^ "shape" of each hyperedge in the graph (defines number of ports)
   , positions  :: Grid HyperEdgeId
   -- ^ Position of each HyperEdge in the layout.
   , nextHyperEdgeId :: HyperEdgeId
   -- ^ Next free ID to add a HyperEdge.
+  -- TODO: put this in Hypergraph?
   } deriving(Eq, Ord, Read, Show)
 
--- TODO: can't easily have empty layout because of underlying graph problem
--- (i.e. no empty arrays allowed :|)
+-- | The empty layout state. An empty hypergraph, nothing positioned, and no
+-- hyperedges yet created.
 empty :: Layout sig
 empty = Layout
-  { hypergraph      = Hypergraph.identity -- TODO?
-  , signatures      = Map.empty
+  { hypergraph      = Hypergraph.empty
   , positions       = Grid.empty
   , nextHyperEdgeId = 0
   }
@@ -69,7 +70,9 @@ dimensions = Grid.dimensions . positions
 positioned :: Ord sig => Layout sig -> [(sig, Position)]
 positioned layout
   = fmap lookupSigs . Map.toList . Grid.positions . positions $ layout
-  where lookupSigs (edgeId, pos) = (signatures layout ! edgeId, pos)
+  where
+    lookupSigs (edgeId, pos) = (Hypergraph.signatures hg ! edgeId, pos)
+    hg = hypergraph layout
 
 -- | Insert a generator into a specific layer, at a particular offset.
 -- If it would overlap with another generator, the generators are shifted down.
@@ -93,9 +96,6 @@ placeGenerator sig height layer offset l = (nextId, l') where
     { hypergraph = Hypergraph.addEdge edgeId sig (hypergraph l)
     -- Add new edgeId to hypergraph
 
-    , signatures = Map.insert edgeId sig (signatures l)
-    -- Add signature to signatures
-
     , positions =
         Grid.placeTile edgeId height
           (fromLayerOffset layer offset) (positions l)
@@ -108,17 +108,14 @@ placeGenerator sig height layer offset l = (nextId, l') where
 -- | connect two hypergraph ports in the layout.
 -- NOTE: returns the original graph unchanged if ports were invalid.
 connectPorts
-  :: Hypergraph.Signature sig
-  => Hypergraph.Port
-  -- ^ Source. Either a LEFT Boundary node, or a RHS port of a hyperedge
-  -> Hypergraph.Port
-  -- ^ Target. Either a RIGHT Boundary node, or a LHS port of a hyperedge
+  :: Port Open
+  -- ^ Source port
+  -> Port Open
+  -- ^ Target port
   -> Layout sig
   -> Layout sig
-connectPorts s t l = case Hypergraph.connect s t (hypergraph l) of
-  Just hg -> l { hypergraph = hg }
-  Nothing -> l
-
+connectPorts s t layout
+  = layout { hypergraph = Hypergraph.connect s t (hypergraph layout) }
 
 -- | Insert a new Layer, corresponding to a new column.
 insertLayer :: Layer -> Layout sig -> Layout sig

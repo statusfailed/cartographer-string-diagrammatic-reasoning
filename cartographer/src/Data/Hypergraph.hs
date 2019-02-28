@@ -1,37 +1,25 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Data.Hypergraph
-  ( Signature
+  ( Signature(..)
   , HyperEdgeId(..)
   , Port(..)
+  , ClosedHypergraph(..)
+  , OpenHypergraph(..)
+  , Open(..)
   , Hypergraph(..)
+  , empty
   , identity
-  , toSize
   , addEdge
   , connect
   ) where
 
-import Data.Graph
-
-import Data.Set (Set(..))
-
-import Data.Sequence (Seq(..), (!?))
-import qualified Data.Sequence as Seq
-
-import Data.Map.Strict (Map(..))
+import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
-import Data.Set (Set)
-import qualified Data.Set as Set
-
-import Data.Array (Array)
-import qualified Data.Array as Array
-
-import Data.Equivalence (Equivalence)
-import qualified Data.Equivalence as Equivalence
-
-import Data.Foldable
+import Data.Functor.Identity (Identity(..))
 
 class Signature a where
   toSize :: a -> (Int, Int)
@@ -40,247 +28,111 @@ instance Integral a => Signature (a, a) where
   toSize (x, y) = (fromIntegral x, fromIntegral y)
 
 -- | Uniquely identify each edge of a hypergraph.
--- Does not say what the "shape" of each generator is.
+-- NOTE: Does not say what the "shape" of each generator is.
 newtype HyperEdgeId = HyperEdgeId { unHyperEdgeId :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
 
-type Boundary = (Seq Vertex, Seq Vertex)
+data Port f = Port (f HyperEdgeId) Int
 
--- A port references either a port of a hyperedge, or a boundary node.
--- Whether it is left or right boundary depends on context.
-data Port = Port HyperEdgeId Int | Boundary Int
+deriving instance Eq   (f HyperEdgeId) => Eq (Port f)
+deriving instance Ord  (f HyperEdgeId) => Ord (Port f)
+deriving instance Read (f HyperEdgeId) => Read (Port f)
+deriving instance Show (f HyperEdgeId) => Show (Port f)
+
+-- | The type of Hypergraphs, parametrised by the type of generators (sig).
+-- By using different types for "f" we can make this open or closed
+-- hypergraphs.
+--
+-- NOTE: we explicitly ignore the "nodes" of the hypergraph in this type.
+-- That's because of the monogamicity requirement of the paper: no node can
+-- appear in more than two hyperedges, and must be a boundary node if it
+-- appears in only one.
+data Hypergraph f sig = Hypergraph
+  { connections :: Map (Port f) (Port f)
+  , signatures  :: Map HyperEdgeId sig
+  }
+
+-- | NOTE: using UndecidableInstances here, but we don't really need it because
+-- we never actually need to parametrise by the "f" type.
+--
+-- However, I\'m keeping the ClosedHypergraph type (and therefore the need for
+-- UndecidableInstances) because I think it clarifies how the OpenHypergraph
+-- type works.
+deriving instance (Eq sig  , Eq   (f HyperEdgeId)) => Eq (Hypergraph f sig)
+deriving instance (Ord sig , Ord  (f HyperEdgeId)) => Ord (Hypergraph f sig)
+-- odd, why do we need an Ord instance here?
+deriving instance (Read sig, Ord  (f HyperEdgeId), Read (f HyperEdgeId)) => Read (Hypergraph f sig)
+deriving instance (Show sig, Show (f HyperEdgeId)) => Show (Hypergraph f sig)
+
+-- | The type of closed Hypergraphs, i.e. those hypergraphs with no "dangling
+-- wires".
+-- We don't use it, but just provide it in contrast to the 'OpenHypergraph'
+-- type.
+type ClosedHypergraph sig = Hypergraph Identity sig
+
+-- | The type of "generators" in an open hypergraph.
+-- This type essentially extends the set of hyperedges with left boundary
+-- and a right boundary of arbitrary size.
+--
+-- NOTE: when a is a number, this type essentially the extended reals
+-- Could use ExtendedReal but NegInf + PosInf is undefined (error).
+data Open a = OpenLeft | Gen a | OpenRight
   deriving(Eq, Ord, Read, Show)
 
--- | The 'Hypergraph' type ... ?
---
--- NB: This type does not insist that every edge is connected to a node;
--- this is so that users can edit the hypergraph incrementally. That is,
--- new generators can be added without immediately connecting them.
---
--- We model hypergraphs as ordinary graphs, where each node is either a
--- hypergraph node, or a "port" of a hyperedge.
-data Hypergraph sig = Hypergraph
-  { underlying :: Graph
-  -- ^ The underlying connectivity graph
-  , hyperedges :: Equivalence Vertex HyperEdgeId
-  -- ^ Which hyperedge a vertex belongs to.
-  -- A 'Vertex' not in this map is a node.
-  , signatures :: Map HyperEdgeId sig
-  , boundary   :: Boundary
-  -- ^ Which Vertices are on the left and right boundaries
-  , nextVertexId :: Vertex
-  -- ^ Next "free" vertex Id.
-  } deriving(Eq, Ord, Read, Show)
+-- | The type of open hypergraphs.
+-- Instead of allowing "dangling wires", we explicitly have 0xN and Mx0
+-- generators for the left and right boundaries for an open hypergraph of type
+-- (N, M).
+-- NOTE: the "signatures" map won't contain the "Left" and "Right generators,
+-- because they don't really have a "signature" - their size depends purely
+-- on what is connected to them.
+-- We use the convention that the largest port number i (i.e. in a connection
+-- Port Left i) is the size of the boundary.
+type OpenHypergraph sig = Hypergraph Open sig
 
--- | The identity morphism is a hypergraph with a single node, appearing in
--- both the left and right boundaries.
-identity :: Hypergraph sig
-identity = Hypergraph
-  { underlying    = Array.listArray (0,0) [[]]
-  , signatures    = Map.empty
-  -- graph with one node and no edges
-  , hyperedges    = Equivalence.empty
-  , boundary      = (Seq.singleton 0, Seq.singleton 0)
-  , nextVertexId  = 1
-  }
+-------------------------------
+-- Can we build useful graphs?
 
--- | The empty hypergraph is the hypergraph with no nodes or edges.
--- Unfortunately, Data.Array cannot represent an empty array, so this is
--- actually unrepresentable as a 'Hypergraph'!
---empty :: Hypergraph sig
---empty = error "TODO: underlying empty graph" $ Hypergraph
---  { underlying    = undefined
---  , signatures    = Map.empty
---  , hyperedges    = Equivalence.empty
---  , boundary      = (Seq.empty, Seq.empty)
---  , nextVertexId  = 0
---  }
+-- | The empty hypergraph
+empty :: Hypergraph Open sig
+empty = Hypergraph Map.empty Map.empty
 
--- | Extend an Array with additional elements
---
--- NOTE: this is rubbish and slow for updating because it copies the whole
--- array. But I have to use it if I want to use Data.Graph! :)
-extend :: (Array.Ix i, Integral i) => Array i v -> [v] -> Array i v
-extend a xs = Array.array (lb, ub+k) newElems
+-- | The identity morphism
+identity :: Hypergraph Open sig
+identity = Hypergraph conns sigs
   where
-    (lb, ub) = Array.bounds a
-    k        = fromIntegral $ length xs
-    newElems = (Array.assocs a ++ zipWith (\i x -> (ub+i, x)) [1..] xs)
+    conns = Map.fromList [(Port OpenLeft 0, Port OpenRight 0)]
+    sigs  = Map.empty
 
--- isHyperEdge g v returns True iff v is a hyperedge in the hypergraph g.
-isHyperEdge :: Vertex -> Hypergraph sig -> Bool
-isHyperEdge v g = Equivalence.member v (hyperedges g)
+-- | the "twist" morphism
+twist = Hypergraph conns Map.empty where
+  conns = Map.fromList
+    [ (Port OpenLeft 0, Port OpenRight 1)
+    , (Port OpenLeft 1, Port OpenRight 0)
+    ]
 
--- | All the vertices in the graph which correspond to Nodes (as opposed to
--- hyper-edges)
-nodes :: Hypergraph sig -> [Vertex]
-nodes g = filter (not . flip isHyperEdge g)  . vertices . underlying $ g
-
--- | Add an edge, but don't connect it to anything.
--- TODO: do nothing if ID is already in graph!
---
--- This creates a n * m fully-connected bipartite graph, which is inserted into
--- the underlying graph, but not connected up to it (i.e. creating a new n+m
--- node disconnected subgraph)
-{-# WARNING addEdge "will cause invalid behaviour if duplicate ID supplied" #-}
+-- | Add an edge to a 'Hypergraph'.
+-- TODO: don't let user of this module assign the hyperedge ID-
+-- they could easily break the graph (and replace an existing generator, which
+-- might end up with fewer ports, and then weird invalid connections)
 addEdge
-  :: Signature sig
-  => HyperEdgeId
-  -> sig
-  -> Hypergraph sig
-  -> Hypergraph sig
-addEdge e sig g =
-  Hypergraph
-  { underlying   = extend (underlying g) vs
-  , hyperedges   = newHyperedges
-  , signatures   = Map.insert e sig (signatures g)
-  , boundary     = boundary g
-  , nextVertexId = end + 1 -- TODO: check me
+  :: HyperEdgeId -> sig -> Hypergraph f sig -> Hypergraph f sig
+addEdge e sig g = g
+  { connections = connections g -- new edge is unconnected
+  , signatures  = Map.insert e sig (signatures g)
   }
-  where
-    (i, j) = toSize sig
-    -- We create i+j new vertices, corresponding to each of the ports of the
-    -- new hyperedge.
-    start  = nextVertexId g -- First new ID
-    middle = start + i - 1  -- Largest "left boundary" ID
-    end    = middle + j     -- Largest "right boundary" ID
 
-    inputs  = [ start .. middle ]
-    outputs = [ middle + 1 .. end ]
-    vs      = replicate i outputs ++ replicate j []
-
-    newHyperedges =
-      foldr (\v -> Equivalence.equate v e) (hyperedges g) (inputs ++ outputs)
-
--- | Try to get the 'Vertex' corresponding to a particular 'Port', specified to
--- be either the source (Left) or target (Right).
---
--- TODO: tidy this up!
-portToVertex
-  :: Signature sig => Either Port Port -> Hypergraph sig -> Maybe Vertex
-portToVertex port graph = do
-  case port of
-    Right (Boundary i)  -> fst (boundary graph) !? i
-    Right (Port e i)    ->
-      Set.lookupMin $ Equivalence.membersOf e (hyperedges graph)
-
-    Left (Boundary i)   -> snd (boundary graph) !? i
-    Left (Port e i)     -> do
-      dims    <- toSize <$> Map.lookup e (signatures graph)
-      minPort <- Set.lookupMin $ Equivalence.membersOf e (hyperedges graph)
-      return (minPort + fst dims)
-
-
--- | connect two 'HyperEdge's together by a specified port.  This amounts to
--- inserting a node into the hypergraph which is connected to a port of each
--- hyperedge
---
--- NOTE: this function connects two hyperedges together by a specified port.
--- It will verify that:
---   1) If the ports are already connected (to each other or anything else)
---      the connection is removed (2 edges + a vertex)
---   2) the former port is not reachable from the latter
+-- | Connect two ports in the hypergraph.
+-- If the source port was already connected to something, that connection is
+-- overwritten.
 connect
-  :: Signature sig
-  => Port
-  -- ^ Source port: either LHS
-  -> Port
-  -- ^ Target port
-  -> Hypergraph sig
-  -> Maybe (Hypergraph sig)
-connect source target graph = do
-  v1 <- portToVertex (Left source) graph
-  v2 <- portToVertex (Right target) graph
-  return $ connect' v1 v2 graph
-
--- PROBLEM:
---   If we have the identity HG, with boundary ([0], [0])
---   and that 0 -> 0
---   When we connect up a new edge, say (1, 1), to the first boundary,
---   we have to replace the RHS [0] with [fresh], or otherwise change
---   the size of the boundary!
---   The real underlying problem here- we can't actually CONSTRUCT the
---   identity or twist graphs using these operations! no way to identify nodes
---   on the left boundary with ones on the right!
---
---   Suppose we had blank graph- add two boundary nodes (v0, v1), now connect-
---   This is NOT the same as the identity. Is it even legal in the paper?
---
--- | Unsafely connect together two vertices of the underlying Graph.
--- This creates a *directed* edge from v1 to v2, and ERASES any other edge from
--- v1.
--- Additionally:
---    - if v1 is a Boundary node, then remove it from RIGHT boundary
---    - if v2 is a Boundary node, then remove it from LEFT  boundary
--- NOTE: the above is done before connecting up the vertices.
---
--- NOTE: this function doesn't check much, so it's possible to really break the
--- hypergraph structure here- for example, if you connect' a LHS port of a
--- generator to something, it will completely screw up the graph structure.
---
--- NOTE ALSO: this function is /partial/. If v1 or v2 are not in the graph,
--- the program will crash.
-connect' :: Vertex -> Vertex -> Hypergraph sig -> Hypergraph sig
-connect' v1 v2 g' = g { underlying = updated }
-  where
-    g       = removeLeftBoundary v2 . removeRightBoundary v1 $ g'
-    ug      = underlying g
-    updated = ug Array.// [(v1, [v2])]
-
--- | Remove a Vertex from the left boundary, if present.
--- Otherwise, do nothing.
-removeLeftBoundary :: Vertex -> Hypergraph sig -> Hypergraph sig
-removeLeftBoundary v g = g { boundary = onFst (Seq.filter (==v)) (boundary g) }
-  where
-    onFst f (x, y) = (f x, y)
-
--- | Remove a Vertex from the right boundary, if present.
-removeRightBoundary :: Vertex -> Hypergraph sig -> Hypergraph sig
-removeRightBoundary v g = g { boundary = onSnd (Seq.filter (==v)) (boundary g) }
-  where
-    onSnd f (x, y) = (x, f y)
-
--------------------------------
--- Hyperedges
-
--- | Given a Vertex, return its only descendant in the graph, if any.
--- It should not be possible for multiple children to exist for monogamous
--- node, so this function will error in that case.
--- This can be safely called in nodes, or RHS ports of a hyperedge.
-monogamous :: Vertex -> Hypergraph sig -> Maybe Vertex
-monogamous v graph = case underlying graph Array.! v of
-  []  -> Nothing
-  [x] -> Just x
-  xs  -> error $ "invalid hypergraph: vertex " ++ show v
-               ++ " connected to multiple targets: " ++ show xs
-
--- | Given a Vertex on the RHS of a Hyperedge, find the Port it connects to, if any.
-targetPortRHS :: Vertex -> Hypergraph sig -> Maybe Port
-targetPortRHS v1 hg = do
-  vnode <- monogamous v1 hg
-  v2    <- monogamous vnode hg
-  undefined
-
--- For each edge, get a list of its connections.
--- It's directed, so for each port, find a vertex they connect to, then the
--- vertexes THEY connect to.
-
--------------------------------
--- TODO
-
-addBoundaryNode :: Hypergraph sig -> (Vertex, Hypergraph sig)
-addBoundaryNode g = undefined
-
--- try to remove a boundary node. If the Vertex is not on the boundary, or is
--- not a node, throw an error (or do nothing?)
-removeBoundaryNode :: Vertex -> Hypergraph sig -> Hypergraph sig
-removeBoundaryNode v g = undefined
-
--------------------------------
--- Predicates
-
--- | Check if the hyperedges in a hypergraph are all connected to nodes.
--- That is, every vertex corresponding to a hyperedge port is connected to a
--- vertex.
-connected :: Hypergraph sig -> Bool
-connected g = undefined
+  :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
+  => Port f
+  -- ^ source port
+  -> Port f
+  -- ^ target port
+  -> Hypergraph f sig
+  -- ^ Hypergraph to modify
+  -> Hypergraph f sig
+-- overwrites connection if p1 or p2 was already connected!
+connect p1 p2 hg = hg { connections = Map.insert p1 p2 (connections hg) }

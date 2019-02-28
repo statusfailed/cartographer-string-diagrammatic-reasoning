@@ -8,7 +8,7 @@ import Miso.String
 import Cartographer.Layout (Layout)
 import qualified Cartographer.Layout as Layout
 
-import Data.Hypergraph (Hypergraph)
+import Data.Hypergraph (Hypergraph, Open(..))
 import qualified Data.Hypergraph as Hypergraph
 
 import View
@@ -52,7 +52,7 @@ example0
 example1 :: Layout Generator
 example1
   = id
-  . Layout.connectPorts (Hypergraph.Port 3 0) (Hypergraph.Port 1 0)
+  . Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 1) 0)
   . snd . Layout.placeGenerator unit    1 0 0
   . snd . Layout.placeGenerator copy    3 0 2
   . snd . Layout.placeGenerator py      3 1 0
