@@ -1,7 +1,16 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Data.Hypergraph where
+module Data.Hypergraph
+  ( Signature
+  , HyperEdgeId(..)
+  , Port(..)
+  , Hypergraph(..)
+  , identity
+  , toSize
+  , addEdge
+  , connect
+  ) where
 
 import Data.Graph
 
@@ -230,6 +239,34 @@ removeRightBoundary :: Vertex -> Hypergraph sig -> Hypergraph sig
 removeRightBoundary v g = g { boundary = onSnd (Seq.filter (==v)) (boundary g) }
   where
     onSnd f (x, y) = (x, f y)
+
+-------------------------------
+-- Hyperedges
+
+-- | Given a Vertex, return its only descendant in the graph, if any.
+-- It should not be possible for multiple children to exist for monogamous
+-- node, so this function will error in that case.
+-- This can be safely called in nodes, or RHS ports of a hyperedge.
+monogamous :: Vertex -> Hypergraph sig -> Maybe Vertex
+monogamous v graph = case underlying graph Array.! v of
+  []  -> Nothing
+  [x] -> Just x
+  xs  -> error $ "invalid hypergraph: vertex " ++ show v
+               ++ " connected to multiple targets: " ++ show xs
+
+-- | Given a Vertex on the RHS of a Hyperedge, find the Port it connects to, if any.
+targetPortRHS :: Vertex -> Hypergraph sig -> Maybe Port
+targetPortRHS v1 hg = do
+  vnode <- monogamous v1 hg
+  v2    <- monogamous vnode hg
+  undefined
+
+-- For each edge, get a list of its connections.
+-- It's directed, so for each port, find a vertex they connect to, then the
+-- vertexes THEY connect to.
+
+-------------------------------
+-- TODO
 
 addBoundaryNode :: Hypergraph sig -> (Vertex, Hypergraph sig)
 addBoundaryNode g = undefined
