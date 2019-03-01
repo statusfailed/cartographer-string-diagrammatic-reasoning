@@ -6,13 +6,14 @@
 -- /This module is intended to be imported qualified./
 module Cartographer.Layout where
 
-import Data.Map.Strict (Map, (!))
+import Data.Map.Strict (Map, (!), (!?))
 import qualified Data.Map.Strict as Map
 
 import Linear.V2
+import Data.Maybe (catMaybes)
 
 import Data.Hypergraph (
-  Hypergraph, Port(..), Open, OpenHypergraph(..), HyperEdgeId(..))
+  Hypergraph, Port(..), Open(..), OpenHypergraph(..), HyperEdgeId(..))
 import qualified Data.Hypergraph as Hypergraph
 
 import Cartographer.Types.Grid (Grid, Position)
@@ -116,6 +117,38 @@ connectPorts
   -> Layout sig
 connectPorts s t layout
   = layout { hypergraph = Hypergraph.connect s t (hypergraph layout) }
+
+-------------------------------
+-- Wire layout helpers
+
+-- | Position of a port in the layout.
+-- TODO: finish this; it's not complete or correct
+positionOf :: Port Open -> Layout sig -> Maybe Position
+positionOf p l = case p of
+  -- TODO! correct port location :)
+  (Port (Gen e) i) ->
+    fmap (+ V2 0 i) (Grid.positions (positions l) !? e)
+  _ -> undefined -- TODO: connecting boundaries!
+
+-- | Return the positions of two ports, if they're adjacent.
+-- NOTE: this isn't quite "adjacent" - this will return Nothing if
+-- L(target) <= L(source)
+adjacent
+  :: Port Open -> Port Open -> Layout sig -> Maybe (Position, Position)
+adjacent source target layout = do
+  v1 <- positionOf source layout
+  v2 <- positionOf target layout
+  case v2 - v1 of
+    V2 1 _  -> Just (v1, v2)
+    _       -> Nothing
+
+connectors :: Layout sig -> [(Position, Position)]
+connectors layout = catMaybes . fmap (($layout) . uncurry adjacent) $ xs
+  where xs = Map.toList . Hypergraph.connections . hypergraph $ layout
+
+-------------------------------
+-- TODO
+
 
 -- | Insert a new Layer, corresponding to a new column.
 insertLayer :: Layer -> Layout sig -> Layout sig

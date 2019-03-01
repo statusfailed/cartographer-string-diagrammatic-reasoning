@@ -97,6 +97,9 @@ placeTile tile h v grid@(Grid eq) =
 -- Get the top-most position of each tile in the grid
 -- (i.e., the position of its topmost tile).
 --
+-- TODO: this might produce the entire Map - might be better to provide as a
+-- function to look up a specific tile?
+--
 -- NOTE: this is technically unsafe; if the set is empty, then it will crash
 -- because minimum is partial.
 -- However, the Equivalence should ensure that there are no empty classes in

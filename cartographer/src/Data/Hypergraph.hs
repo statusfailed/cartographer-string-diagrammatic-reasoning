@@ -32,6 +32,9 @@ instance Integral a => Signature (a, a) where
 newtype HyperEdgeId = HyperEdgeId { unHyperEdgeId :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
 
+-- | Ports of a hyperedge.
+-- This is parametrised by f to allow ports to specify boundary ports as well
+-- as generator ports.
 data Port f = Port (f HyperEdgeId) Int
 
 deriving instance Eq   (f HyperEdgeId) => Eq (Port f)

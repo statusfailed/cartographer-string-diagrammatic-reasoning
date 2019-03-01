@@ -11,10 +11,14 @@ import qualified Miso.String as MS
 import qualified Miso.Svg as Svg
 
 import Data.String
+
+import Linear.Vector ((*^))
 import Linear.V2 (V2(..))
 
 import Cartographer.Layout (Layout)
 import qualified Cartographer.Layout as Layout
+
+import Cartographer.Types.Grid (Position)
 
 import Data.Equivalence (Equivalence)
 import qualified Data.Equivalence as Equivalence
@@ -27,8 +31,10 @@ data ViewOptions = ViewOptions
 
 viewLayout :: Layout Generator -> ViewOptions -> View action
 viewLayout layout opts@(ViewOptions tileSize) =
-  Svg.svg_ svgAttrs $
-    style : gridLines unitSize (fromIntegral <$> dims) : renderedGenerators
+  Svg.svg_ svgAttrs
+    $ style
+    : gridLines unitSize (fromIntegral <$> dims)
+    : (renderedGenerators ++ renderedConnectors)
   where
     unitSize = fromIntegral tileSize
     sz = V2 tileSize tileSize * V2 2 1 -- double width to accomodate connectors
@@ -36,9 +42,13 @@ viewLayout layout opts@(ViewOptions tileSize) =
     svgAttrs = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
     style = Svg.style_ [Svg.type_' "text/css"] [staticCss]
 
-    -- TODO
     renderedGenerators = fmap (f viewGenerator) (Layout.positioned layout)
     f g (x,y) = g x y opts
+
+    renderedConnectors
+      = fmap (($unitSize) . uncurry drawConnector) (Layout.connectors layout)
+
+
 
 -- | Draw a square grid spaced by unitSize pixels over the area specified by
 -- the vector.
@@ -110,6 +120,14 @@ viewGeneratorWire x cx unitSize port = connector cx (x + V2 px py)
   where
     px = either (const 0) (const unitSize) port
     py = (+ unitSize/2.0) . (*unitSize) . fromIntegral $ either id id port
+
+-------------------------------
+-- Drawing connections
+
+drawConnector :: Position -> Position -> Double -> View action
+drawConnector start end unitSize
+  = connector (scale start unitSize) (scale end 0)
+  where scale v a = (unitSize *^ 2 * fmap fromIntegral v) + V2 a (unitSize/2)
 
 -------------------------------
 -- Bezier utilities
