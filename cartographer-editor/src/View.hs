@@ -127,7 +127,7 @@ viewGeneratorWire x cx unitSize port = connector cx (x + V2 px py)
 drawConnector :: Position -> Position -> Double -> View action
 drawConnector start end unitSize
   = connector (scale start unitSize) (scale end 0)
-  where scale v a = (unitSize *^ 2 * fmap fromIntegral v) + V2 a (unitSize/2)
+  where scale v a = (unitSize *^ V2 2 1 * fmap fromIntegral v) + V2 a (unitSize/2)
 
 -------------------------------
 -- Bezier utilities
