@@ -3,7 +3,7 @@
 module Main where
 
 import Miso
-import Miso.String
+import Miso.String (MisoString(..))
 
 import Cartographer.Layout (Layout)
 import qualified Cartographer.Layout as Layout
@@ -36,34 +36,35 @@ counit = Generator (1, 0) ([0], []) "black" "counit"
 -- Miso code
 
 -- | Type synonym for an application model
-type Model = Layout Generator
+data Model = Model
+  { layout :: Layout Generator
+  , numOps :: Int
+  } deriving(Eq, Ord, Read, Show)
+
+operations :: [Layout Generator -> Layout Generator]
+operations =
+  [ snd . Layout.placeGenerator counit  1 1 4
+  , snd . Layout.placeGenerator py      3 1 0
+  , snd . Layout.placeGenerator copy    3 0 2
+  , snd . Layout.placeGenerator unit    1 0 0
+  , Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 1) 0)
+  ]
+
+runOperations xs = foldl (flip (.)) id xs Layout.empty
 
 -- TODO: right now we use the layout with a single 1x1 generator, placed at the
 -- origin, which is 1 grid-square tall.
 example0 :: Layout Generator
-example0
-  = id
-  . snd . Layout.placeGenerator unit    1 0 0
-  . snd . Layout.placeGenerator copy    3 0 2
-  . snd . Layout.placeGenerator py      3 1 0
-  . snd . Layout.placeGenerator counit  1 1 4
-  $ Layout.empty
+example0 = runOperations (take 4 operations)
 
 example1 :: Layout Generator
-example1
-  = id
-  . Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 1) 0)
-  . snd . Layout.placeGenerator unit    1 0 0
-  . snd . Layout.placeGenerator copy    3 0 2
-  . snd . Layout.placeGenerator py      3 1 0
-  . snd . Layout.placeGenerator counit  1 1 4
-  $ Layout.empty
+example1 = runOperations operations
 
-emptyModel :: Layout Generator
-emptyModel = example1
+emptyModel :: Model
+emptyModel = Model (runOperations operations) (length operations)
 
 -- | Sum type for application events
-data Action = Action
+data Action = NoOp | SetNumOps Int
   deriving (Eq, Ord, Read, Show)
 
 -- | Entry point for a miso application
@@ -71,7 +72,7 @@ main :: IO ()
 main = do
   startApp App {..}
   where
-    initialAction = Action
+    initialAction = NoOp
     model  = emptyModel
     update = updateModel
     view   = viewModel
@@ -80,7 +81,17 @@ main = do
     mountPoint = Nothing
 
 updateModel :: Action -> Model -> Effect Action Model
-updateModel Action m = noEff m
+updateModel action m = case action of
+  NoOp -> noEff m
+  SetNumOps n ->
+    noEff $ m { numOps = n, layout = runOperations (take n operations) }
 
 viewModel :: Model -> View Action
-viewModel m = viewLayout m (ViewOptions 50)
+viewModel (Model layout numOps) = div_ []
+  [ button_ [ onClick (SetNumOps $ inc numOps) ] [ ">>" ]
+  , button_ [ onClick (SetNumOps $ dec numOps) ] [ "<<" ]
+  , div_ []  [ viewLayout layout (ViewOptions 50) ]
+  ]
+  where
+    inc n = min (n + 1) (length operations)
+    dec n = max 0 (n - 1)
