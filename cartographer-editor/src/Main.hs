@@ -4,6 +4,7 @@ module Main where
 
 import Miso
 import Miso.String (MisoString(..))
+import Miso.Subscription.Keyboard (arrowsSub, Arrows(..))
 
 import Cartographer.Layout (Layout)
 import qualified Cartographer.Layout as Layout
@@ -47,7 +48,8 @@ operations =
   , snd . Layout.placeGenerator py      3 1 0
   , snd . Layout.placeGenerator copy    3 0 2
   , snd . Layout.placeGenerator unit    1 0 0
-  , Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 1) 0)
+  , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
+  , Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 0) 0)
   ]
 
 runOperations xs = foldl (flip (.)) id xs Layout.empty
@@ -64,7 +66,7 @@ emptyModel :: Model
 emptyModel = Model (runOperations operations) (length operations)
 
 -- | Sum type for application events
-data Action = NoOp | SetNumOps Int
+data Action = NoOp | AddNumOps Int
   deriving (Eq, Ord, Read, Show)
 
 -- | Entry point for a miso application
@@ -77,21 +79,27 @@ main = do
     update = updateModel
     view   = viewModel
     events = defaultEvents
-    subs   = []
+    subs   = [arrowsSub arrowToAction]
     mountPoint = Nothing
+
+arrowToAction :: Arrows -> Action
+arrowToAction (Arrows x _) = AddNumOps x
 
 updateModel :: Action -> Model -> Effect Action Model
 updateModel action m = case action of
   NoOp -> noEff m
-  SetNumOps n ->
-    noEff $ m { numOps = n, layout = runOperations (take n operations) }
+  AddNumOps k ->
+    let n = clamp (numOps m + k)
+    in
+      noEff $ m { numOps = n
+                , layout = runOperations (take n operations)
+                }
+  where
+    clamp= max 0 . min (length operations)
 
 viewModel :: Model -> View Action
 viewModel (Model layout numOps) = div_ []
-  [ button_ [ onClick (SetNumOps $ inc numOps) ] [ ">>" ]
-  , button_ [ onClick (SetNumOps $ dec numOps) ] [ "<<" ]
+  [ button_ [ onClick (AddNumOps (-1)) ] [ "<<" ]
+  , button_ [ onClick (AddNumOps 1   ) ] [ ">>" ]
   , div_ []  [ viewLayout layout (ViewOptions 50) ]
   ]
-  where
-    inc n = min (n + 1) (length operations)
-    dec n = max 0 (n - 1)
