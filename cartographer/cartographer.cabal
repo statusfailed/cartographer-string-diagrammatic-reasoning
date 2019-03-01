@@ -20,7 +20,8 @@ library
                      , Cartographer.Types.Grid
                      , Data.Hypergraph
                      , Data.Equivalence
-  -- other-modules:       
+  other-modules:       Data.Hypergraph.Type
+                     , Data.Hypergraph.Match
   -- other-extensions:    
   build-depends:       base, array, containers, linear
   hs-source-dirs:      src
