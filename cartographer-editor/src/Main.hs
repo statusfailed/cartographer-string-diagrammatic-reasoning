@@ -4,6 +4,7 @@ module Main where
 
 import Miso
 import Miso.String (MisoString(..))
+import Data.String
 
 import Cartographer.Layout (Layout)
 import qualified Cartographer.Layout as Layout
@@ -43,11 +44,13 @@ data Model = Model
 
 operations :: [Layout Generator -> Layout Generator]
 operations =
-  [ snd . Layout.placeGenerator counit  1 1 4
-  , snd . Layout.placeGenerator py      3 1 0
-  , snd . Layout.placeGenerator copy    3 0 2
-  , snd . Layout.placeGenerator unit    1 0 0
-  , Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 1) 0)
+  [ snd . Layout.placeGenerator counit  1 1 4 -- 0
+  , snd . Layout.placeGenerator py      3 1 0 -- 1
+  , snd . Layout.placeGenerator copy    3 0 2 -- 2
+  , snd . Layout.placeGenerator unit    1 0 1 -- 3
+  , snd . Layout.placeGenerator counit  1 1 8 -- 4
+  , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
+  , Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 0) 0)
   ]
 
 runOperations xs = foldl (flip (.)) id xs Layout.empty
@@ -88,9 +91,10 @@ updateModel action m = case action of
 
 viewModel :: Model -> View Action
 viewModel (Model layout numOps) = div_ []
-  [ button_ [ onClick (SetNumOps $ inc numOps) ] [ ">>" ]
-  , button_ [ onClick (SetNumOps $ dec numOps) ] [ "<<" ]
+  [ button_ [ onClick (SetNumOps $ dec numOps) ] [ "<<" ]
+  , button_ [ onClick (SetNumOps $ inc numOps) ] [ ">>" ]
   , div_ []  [ viewLayout layout (ViewOptions 50) ]
+  , div_ [] [ fromString (show $ Layout.connectors layout) ]
   ]
   where
     inc n = min (n + 1) (length operations)

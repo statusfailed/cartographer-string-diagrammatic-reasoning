@@ -68,11 +68,20 @@ dimensions = Grid.dimensions . positions
 -- TODO: consider if this is the right interface.
 -- NOTE: Leaving unsafe use of ! in the datastructure, because if it ever
 -- fails then there are bugs elsewhere!
-positioned :: Ord sig => Layout sig -> [(sig, Position)]
+--
+-- NOTE: note the (+ V2 1 0) in lookupSigs.
+-- This is here because we also need to position the Left and Right boundaries.
+-- We assume the left boundary is at 0, and the right is at the width of the
+-- layout + 1.
+positioned :: Ord sig => Layout sig -> [(Open sig, Position)]
 positioned layout
-  = fmap lookupSigs . Map.toList . Grid.positions . positions $ layout
+  = (OpenLeft, V2 0 0)
+  : (OpenRight, V2 1 0 * dims + V2 2 0) -- position at top right + x
+  : (fmap (toGen . lookupSigs) . Map.toList . Grid.positions . positions $ layout)
   where
-    lookupSigs (edgeId, pos) = (Hypergraph.signatures hg ! edgeId, pos)
+    dims = Grid.dimensions (positions layout)
+    toGen (g, p) = (Gen g, p)
+    lookupSigs (edgeId, pos) = (Hypergraph.signatures hg ! edgeId, pos + V2 1 0)
     hg = hypergraph layout
 
 -- | Insert a generator into a specific layer, at a particular offset.
@@ -127,6 +136,7 @@ positionOf :: Port Open -> Layout sig -> Maybe Position
 positionOf p l = case p of
   -- TODO! correct port location :)
   (Port (Gen e) i) ->
+    -- fmap because !? returns a Maybe
     fmap (+ V2 0 i) (Grid.positions (positions l) !? e)
   _ -> undefined -- TODO: connecting boundaries!
 
@@ -143,12 +153,15 @@ adjacent source target layout = do
     _       -> Nothing
 
 connectors :: Layout sig -> [(Position, Position)]
-connectors layout = catMaybes . fmap (($layout) . uncurry adjacent) $ xs
-  where xs = Map.toList . Hypergraph.connections . hypergraph $ layout
+connectors layout
+  = fmap (onBoth translate) . catMaybes . fmap (($layout) . uncurry adjacent) $ xs
+  where
+    xs = Map.toList . Hypergraph.connections . hypergraph $ layout
+    translate = (+ V2 1 0) -- shift everyone by 1 layer.
+    onBoth f (x,y) = (f x, f y)
 
 -------------------------------
 -- TODO
-
 
 -- | Insert a new Layer, corresponding to a new column.
 insertLayer :: Layer -> Layout sig -> Layout sig

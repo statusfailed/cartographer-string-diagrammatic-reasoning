@@ -15,6 +15,9 @@ import Data.String
 import Linear.Vector ((*^))
 import Linear.V2 (V2(..))
 
+import Data.Hypergraph (Hypergraph, Open(..))
+import qualified Data.Hypergraph as Hypergraph
+
 import Cartographer.Layout (Layout)
 import qualified Cartographer.Layout as Layout
 
@@ -38,16 +41,21 @@ viewLayout layout opts@(ViewOptions tileSize) =
   where
     unitSize = fromIntegral tileSize
     sz = V2 tileSize tileSize * V2 2 1 -- double width to accomodate connectors
-    dims@(V2 imgWidth imgHeight) = sz * (Layout.dimensions layout + V2 1 1)
+    dims@(V2 imgWidth imgHeight) = sz * (Layout.dimensions layout + V2 3 1)
     svgAttrs = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
     style = Svg.style_ [Svg.type_' "text/css"] [staticCss]
 
     renderedGenerators = fmap (f viewGenerator) (Layout.positioned layout)
-    f g (x,y) = g x y opts
+    f g (gen, pos) = g (openToGen gen) pos opts
+
+    -- TODO: remove this; write specific function to render as boundary instead
+    -- of as a fake generator.
+    openToGen OpenLeft  = Generator (0, 1) ([], [0]) "red" ""
+    openToGen OpenRight = Generator (1, 0) ([0], []) "red" ""
+    openToGen (Gen g)   = g
 
     renderedConnectors
       = fmap (($unitSize) . uncurry drawConnector) (Layout.connectors layout)
-
 
 
 -- | Draw a square grid spaced by unitSize pixels over the area specified by

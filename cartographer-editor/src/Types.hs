@@ -14,6 +14,7 @@ instance Signature Generator where
   toSize = size
 
 -- | Height (in tiles) of the generator.
+-- TODO: use max port position instead?
 -- TODO: explain this better.
 -- A generator of size (2,1) will have total height 3, so it looks symmetric.
 tileHeight (Generator (l, r) _ _ _) = max l r + modifier
