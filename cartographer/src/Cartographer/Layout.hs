@@ -13,7 +13,7 @@ import Linear.V2
 import Data.Maybe (catMaybes)
 
 import Data.Hypergraph (
-  Hypergraph, Port(..), Open(..), OpenHypergraph(..), HyperEdgeId(..))
+  Hypergraph, Port(..), Open(..), L, R, OpenHypergraph(..), HyperEdgeId(..))
 import qualified Data.Hypergraph as Hypergraph
 
 import Cartographer.Types.Grid (Grid, Position)
@@ -32,7 +32,7 @@ newtype Offset = Offset { unOffset :: Int }
 -- They either
 data Tile
   = Generator HyperEdgeId
-  | Pseudo (Port Open) (Port Open)
+  | Pseudo (Port L Open) (Port R Open)
   deriving(Eq, Ord, Read, Show)
 
 fromLayerOffset :: Layer -> Offset -> V2 Int
@@ -109,9 +109,9 @@ placeGenerator sig height layer offset l = (nextId, l') where
 -- | connect two hypergraph ports in the layout.
 -- NOTE: returns the original graph unchanged if ports were invalid.
 connectPorts
-  :: Port Open
+  :: Port L Open
   -- ^ Source port
-  -> Port Open
+  -> Port R Open
   -- ^ Target port
   -> Layout sig
   -> Layout sig
@@ -123,7 +123,7 @@ connectPorts s t layout
 
 -- | Position of a port in the layout.
 -- TODO: finish this; it's not complete or correct
-positionOf :: Port Open -> Layout sig -> Maybe Position
+positionOf :: Port a Open -> Layout sig -> Maybe Position
 positionOf p l = case p of
   -- TODO! correct port location :)
   (Port (Gen e) i) ->
@@ -134,7 +134,7 @@ positionOf p l = case p of
 -- NOTE: this isn't quite "adjacent" - this will return Nothing if
 -- L(target) <= L(source)
 adjacent
-  :: Port Open -> Port Open -> Layout sig -> Maybe (Position, Position)
+  :: Port L Open -> Port R Open -> Layout sig -> Maybe (Position, Position)
 adjacent source target layout = do
   v1 <- positionOf source layout
   v2 <- positionOf target layout

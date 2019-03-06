@@ -8,6 +8,8 @@ module Data.Hypergraph.Type
   , Port(..)
   , ClosedHypergraph(..)
   , OpenHypergraph(..)
+  , L
+  , R
   , Open(..)
   , Hypergraph(..)
   , empty
@@ -32,26 +34,33 @@ instance Integral a => Signature (a, a) where
 newtype HyperEdgeId = HyperEdgeId { unHyperEdgeId :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
 
+-- phantom types for type safety
+data L
+data R
+
 -- | Ports of a hyperedge.
 -- This is parametrised by f to allow ports to specify boundary ports as well
 -- as generator ports.
-data Port f = Port (f HyperEdgeId) Int
+data Port a f = Port (f HyperEdgeId) Int
 
-deriving instance Eq   (f HyperEdgeId) => Eq (Port f)
-deriving instance Ord  (f HyperEdgeId) => Ord (Port f)
-deriving instance Read (f HyperEdgeId) => Read (Port f)
-deriving instance Show (f HyperEdgeId) => Show (Port f)
+deriving instance Eq   (f HyperEdgeId) => Eq (Port a f)
+deriving instance Ord  (f HyperEdgeId) => Ord (Port a f)
+deriving instance Read (f HyperEdgeId) => Read (Port a f)
+deriving instance Show (f HyperEdgeId) => Show (Port a f)
 
 -- | The type of Hypergraphs, parametrised by the type of generators (sig).
 -- By using different types for "f" we can make this open or closed
 -- hypergraphs.
+--
+-- TODO: swapped L and R... very confusing! "L" means "appears on left-hand-side of a wire!
+-- Should rename these.
 --
 -- NOTE: we explicitly ignore the "nodes" of the hypergraph in this type.
 -- That's because of the monogamicity requirement of the paper: no node can
 -- appear in more than two hyperedges, and must be a boundary node if it
 -- appears in only one.
 data Hypergraph f sig = Hypergraph
-  { connections :: Map (Port f) (Port f)
+  { connections :: Map (Port L f) (Port R f)
   , signatures  :: Map HyperEdgeId sig
   }
 
@@ -79,7 +88,7 @@ type ClosedHypergraph sig = Hypergraph Identity sig
 --
 -- NOTE: when a is a number, this type essentially the extended reals
 -- Could use ExtendedReal but NegInf + PosInf is undefined (error).
-data Open a = OpenLeft | Gen a | OpenRight
+data Open a = Boundary | Gen a
   deriving(Eq, Ord, Read, Show)
 
 -- | The type of open hypergraphs.
@@ -104,14 +113,14 @@ empty = Hypergraph Map.empty Map.empty
 identity :: Hypergraph Open sig
 identity = Hypergraph conns sigs
   where
-    conns = Map.fromList [(Port OpenLeft 0, Port OpenRight 0)]
+    conns = Map.fromList [(Port Boundary 0, Port Boundary 0)]
     sigs  = Map.empty
 
 -- | the "twist" morphism
 twist = Hypergraph conns Map.empty where
   conns = Map.fromList
-    [ (Port OpenLeft 0, Port OpenRight 1)
-    , (Port OpenLeft 1, Port OpenRight 0)
+    [ (Port Boundary 0, Port Boundary 1)
+    , (Port Boundary 1, Port Boundary 0)
     ]
 
 -- | Add an edge to a 'Hypergraph'.
@@ -130,9 +139,9 @@ addEdge e sig g = g
 -- overwritten.
 connect
   :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
-  => Port f
+  => Port L f
   -- ^ source port
-  -> Port f
+  -> Port R f
   -- ^ target port
   -> Hypergraph f sig
   -- ^ Hypergraph to modify
