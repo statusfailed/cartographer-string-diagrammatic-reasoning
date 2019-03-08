@@ -1,5 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- | Pattern matching hypergraphs
 module Data.Hypergraph.Match where
@@ -9,13 +11,19 @@ import Data.Hypergraph.Type as Hypergraph
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
-import Data.Bimap (Bimap)
+import Data.Bimap (Bimap(..))
 import qualified Data.Bimap as Bimap
 
 import Control.Applicative
-import Control.Monad
+import Control.Monad hiding (guard)
+
+import Data.Functor.Identity
+import Control.Monad.Reader hiding (guard)
 import Control.Monad.Reader.Class
+import Control.Monad.State hiding (guard)
 import Control.Monad.State.Class
+
+guard x = return ()
 
 -- | The read-only data available during matching - the pattern and graph to match it in.
 data MatchEnv sig = MatchEnv
@@ -26,18 +34,48 @@ data MatchEnv sig = MatchEnv
 -- | A matching consists of two 1:1 correspondences:
 --    1) Between ports in the pattern and the graph
 --    2) Between hyperedge IDs in the pattern and in the graph
-data Match sig = Match
-  { _matchPorts :: Bimap (Port L Open) (Port R Open)
+data MatchState sig = MatchState
+  { _matchPortsL :: Bimap (Port L Open) (Port L Open)
+  , _matchPortsR :: Bimap (Port R Open) (Port R Open)
   -- ^ A 1:1 correspondence of ports in the pattern (left) and the graph (right)
   , _matchEdges :: Bimap HyperEdgeId HyperEdgeId
   -- ^ A 1:1 correspondence between hyperedges in the pattern (left) and graph (right)
   }
 
--- TODO: add MonadLogic :-)
-class (MonadReader (MatchEnv sig) m, MonadState (Match sig) m, Alternative m) => MonadMatch sig m
+deriving instance Eq (MatchState sig)
+deriving instance Ord (MatchState sig)
+deriving instance Show (MatchState sig)
 
-emptyMatch :: Match sig
-emptyMatch = Match Bimap.empty Bimap.empty
+-- TODO: add MonadLogic :-)
+class
+  ( MonadReader (MatchEnv sig) m
+  , MonadState (MatchState sig) m
+  ) => MonadMatch sig m
+
+type MatchT sig m = ReaderT (MatchEnv sig) (StateT (MatchState sig) m)
+type Match sig = MatchT sig Identity
+
+instance Monad m => MonadMatch sig (MatchT sig m)
+
+emptyMatchState :: MatchState sig
+emptyMatchState = MatchState Bimap.empty Bimap.empty Bimap.empty
+
+runMatchT
+  :: Monad m
+  => OpenHypergraph sig
+  -> OpenHypergraph sig
+  -> MatchT sig m a
+  -> m (MatchState sig)
+runMatchT pattern graph = flip execStateT emptyMatchState . flip runReaderT env
+  where env = MatchEnv pattern graph
+
+runMatch
+  :: OpenHypergraph sig
+  -> OpenHypergraph sig
+  -> Match sig a
+  -> MatchState sig
+runMatch p g = runIdentity . runMatchT p g
+
 
 -- | Returns True if either:
 --    a and b are a pair in the map
@@ -59,6 +97,7 @@ sigOf f e = do
   sig <- reader (Map.lookup e . Hypergraph.signatures . f)
   case sig of
     Just x  -> return x
+    -- TODO: remove evil partial functions
     Nothing -> error $ "Data.Hypergraph.Match.sigOf: no signature for " ++ show e
 
 matchHyperEdgeId
@@ -73,22 +112,31 @@ matchHyperEdgeId p q = do
   -- either p matches q, or neither are matched
   gets (pairedOrMissing p q . _matchEdges) >>= guard
 
+  -- set p == q
+  modify (\m -> m { _matchEdges = Bimap.insert p q (_matchEdges m) })
   return q
 
--- | Match two ports
+-- | Match two source ports or two target ports.
 -- (i.e., assert that pattern port p corresponds to graph port q.)
 matchPort
   :: (Eq sig, MonadMatch sig m)
   => Port side Open
   -> Port side Open
   -> m ()
-matchPort (Port Boundary pi) q = do
-  return () -- match success, TODO state update
-matchPort (Port (Gen pe) pi) (Port Boundary qi) = return () -- impossible!
-matchPort (Port (Gen pe) pi) (Port (Gen qe) qi) = do
+-- match success, TODO state update
+matchPort (Port Boundary pi) _ = return ()
+
+-- A Generator node in the pattern can never match a Boundary in the graph-
+-- the signatures clearly don't match!
+matchPort _ (Port Boundary qi) = guard False
+
+-- If both parts of the proposed match are Generators, then try to match the
+-- edge of each port, and check each port has the same index on that edge.
+matchPort p@(Port (Gen pe) pi) q@(Port (Gen qe) qi) = do
   -- Ports must connect at the same place on the hyperedge
   guard $ pi == qi
-  -- TODO: handle Left and Right boundaries!
+  -- set p <-> q
+
   matchHyperEdgeId pe qe
   return ()
 
@@ -107,7 +155,10 @@ matchWire (pa, pb) (qa, qb) = do
   -- pa ~> pb AND qa ~> qb => pb <-> qb
   -- pb <-> qb => e(pb) = e(qb)
   matchPort pa qa
+  modify (\m -> m { _matchPortsL = Bimap.insert pa qa (_matchPortsL m) })
+
   matchPort pb qb
+  modify (\m -> m { _matchPortsR = Bimap.insert pb qb (_matchPortsR m) })
 
 -- | Match a pattern within a context.
 -- Pseudocode:
@@ -123,10 +174,27 @@ matchWire (pa, pb) (qa, qb) = do
 match
   :: Eq sig
   => MonadMatch sig m
-  => m (Match sig)
+  => m (MatchState sig)
 match = do
   error "TODO: match"
 
 -- Probably the exposed interface for matching?
-match' :: OpenHypergraph sig -> OpenHypergraph sig -> [Match sig]
+match' :: OpenHypergraph sig -> OpenHypergraph sig -> [MatchState sig]
 match' = undefined
+
+
+-------------------------------
+-- Testing
+
+proggy :: Eq sig => Match sig ()
+proggy = do
+  matchWire
+    (Port Boundary 0, Port Boundary 0)
+    (Port Boundary 0, Port Boundary 0)
+  where
+    pa = Port Boundary 0
+    qa = Port Boundary 0
+    pb = Port Boundary 0
+    qb = Port Boundary 0
+
+test f = runMatch identity identity $ f

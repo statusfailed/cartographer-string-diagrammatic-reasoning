@@ -3,8 +3,8 @@ module Data.Hypergraph
   , module Data.Hypergraph.Match
   ) where
 
--- | Hypergraph construction and modification
+-- Hypergraph construction and modification
 import Data.Hypergraph.Type
 
--- | Hypergraph pattern matching
+-- Hypergraph pattern matching
 import Data.Hypergraph.Match
