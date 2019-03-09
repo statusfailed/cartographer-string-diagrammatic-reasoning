@@ -16,10 +16,14 @@ module Data.Hypergraph.Type
   , identity
   , addEdge
   , connect
+  , bfs
   ) where
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+
+import Data.Equivalence (Equivalence)
+import qualified Data.Equivalence as Equivalence
 
 import Data.Functor.Identity (Identity(..))
 
@@ -60,7 +64,7 @@ deriving instance Show (f HyperEdgeId) => Show (Port a f)
 -- appear in more than two hyperedges, and must be a boundary node if it
 -- appears in only one.
 data Hypergraph f sig = Hypergraph
-  { connections :: Map (Port L f) (Port R f)
+  { connections :: Map (Port L f) (Port R f) -- ^ Why not a Bimap?
   , signatures  :: Map HyperEdgeId sig
   }
 
@@ -148,3 +152,25 @@ connect
   -> Hypergraph f sig
 -- overwrites connection if p1 or p2 was already connected!
 connect p1 p2 hg = hg { connections = Map.insert p1 p2 (connections hg) }
+
+-------------------------------
+-- Operations / Traversals
+
+-- | Equivalence class of left ports
+leftPorts :: Hypergraph f sig -> Equivalence (Port L f) (f HyperEdgeId)
+leftPorts = undefined
+
+bfs'
+  :: OpenHypergraph sig
+  -> ([Port L Open], [Port L Open])
+  -> ([Port L Open], [Port L Open])
+bfs' = undefined
+
+-- | A breadth-first traversal of an OpenHypergraph, yielding all the
+-- SOURCE ports in breadth-first order.
+-- Additionally, all the ports of each hyperedge will be adjacent in the
+-- resulting list.
+bfs :: OpenHypergraph sig -> [Port L Open]
+bfs hg@(Hypergraph cs _) = undefined
+  where
+    ls = leftPorts hg
