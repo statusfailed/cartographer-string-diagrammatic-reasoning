@@ -141,6 +141,8 @@ matchPort p@(Port (Gen pe) pi) q@(Port (Gen qe) qi) = void $ do
   matchHyperEdgeId pe qe
 
 -- | Propose that a given "wire" in the pattern matches a wire in the graph.
+-- TODO: remove the "when" blocks- use a lens to parametrise "matchPort" over
+-- the matched Source/Target ports. The code below is hideous!!
 matchWire
   :: (Eq sig, MonadMatch sig m)
   => (Port L Open, Port R Open)
@@ -156,16 +158,19 @@ matchWire (pa, pb) (qa, qb) = do
   -- pb <-> qb => e(pb) = e(qb)
   matchPort pa qa
   -- TODO: check both matched
-  gets (pairedOrMissing pa qa . _matchStatePortsL) >>= guard
+  when (not $ isBoundary pa) $
+    gets (pairedOrMissing pa qa . _matchStatePortsL) >>= guard
   modify
     (\m -> m { _matchStatePortsL = Bimap.insert pa qa (_matchStatePortsL m) })
 
   matchPort pb qb
-  gets (pairedOrMissing pb qb . _matchStatePortsR) >>= guard
+  when (not $ isBoundary pb) $
+    gets (pairedOrMissing pb qb . _matchStatePortsR) >>= guard
   modify
     (\m -> m { _matchStatePortsR = Bimap.insert pb qb (_matchStatePortsR m) })
-
-
+  where
+    isBoundary (Port Boundary _) = True
+    isBoundary _ = False
 
 
 -------------------------------
