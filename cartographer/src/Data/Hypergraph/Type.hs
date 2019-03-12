@@ -8,8 +8,8 @@ module Data.Hypergraph.Type
   , Port(..)
   , ClosedHypergraph(..)
   , OpenHypergraph(..)
-  , L
-  , R
+  , Source
+  , Target
   , Open(..)
   , Hypergraph(..)
   , empty
@@ -39,8 +39,8 @@ newtype HyperEdgeId = HyperEdgeId { unHyperEdgeId :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
 
 -- phantom types for type safety
-data L
-data R
+data Source
+data Target
 
 -- | Ports of a hyperedge.
 -- This is parametrised by f to allow ports to specify boundary ports as well
@@ -56,15 +56,15 @@ deriving instance Show (f HyperEdgeId) => Show (Port a f)
 -- By using different types for "f" we can make this open or closed
 -- hypergraphs.
 --
--- TODO: swapped L and R... very confusing! "L" means "appears on left-hand-side of a wire!
--- Should rename these.
---
 -- NOTE: we explicitly ignore the "nodes" of the hypergraph in this type.
 -- That's because of the monogamicity requirement of the paper: no node can
 -- appear in more than two hyperedges, and must be a boundary node if it
 -- appears in only one.
+-- Another way to view this is that nodes are still present, but are identified
+-- uniquely by the two Ports they connect. In an 'OpenHypergraph', this
+-- corresponds to having the "Source" port on the Boundary.
 data Hypergraph f sig = Hypergraph
-  { connections :: Map (Port L f) (Port R f) -- ^ Why not a Bimap?
+  { connections :: Map (Port Source f) (Port Target f) -- ^ Why not a Bimap?
   , signatures  :: Map HyperEdgeId sig
   }
 
@@ -143,9 +143,9 @@ addEdge e sig g = g
 -- overwritten.
 connect
   :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
-  => Port L f
+  => Port Source f
   -- ^ source port
-  -> Port R f
+  -> Port Target f
   -- ^ target port
   -> Hypergraph f sig
   -- ^ Hypergraph to modify
@@ -157,20 +157,20 @@ connect p1 p2 hg = hg { connections = Map.insert p1 p2 (connections hg) }
 -- Operations / Traversals
 
 -- | Equivalence class of left ports
-leftPorts :: Hypergraph f sig -> Equivalence (Port L f) (f HyperEdgeId)
+leftPorts :: Hypergraph f sig -> Equivalence (Port Source f) (f HyperEdgeId)
 leftPorts = undefined
 
 bfs'
   :: OpenHypergraph sig
-  -> ([Port L Open], [Port L Open])
-  -> ([Port L Open], [Port L Open])
+  -> ([Port Source Open], [Port Source Open])
+  -> ([Port Source Open], [Port Source Open])
 bfs' = undefined
 
 -- | A breadth-first traversal of an OpenHypergraph, yielding all the
 -- SOURCE ports in breadth-first order.
 -- Additionally, all the ports of each hyperedge will be adjacent in the
 -- resulting list.
-bfs :: OpenHypergraph sig -> [Port L Open]
+bfs :: OpenHypergraph sig -> [Port Source Open]
 bfs hg@(Hypergraph cs _) = undefined
   where
     ls = leftPorts hg

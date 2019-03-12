@@ -35,8 +35,8 @@ data MatchEnv sig = MatchEnv
 --    1) Between ports in the pattern and the graph
 --    2) Between hyperedge IDs in the pattern and in the graph
 data MatchState sig = MatchState
-  { _matchStatePortsL :: Bimap (Port L Open) (Port L Open)
-  , _matchStatePortsR :: Bimap (Port R Open) (Port R Open)
+  { _matchStatePortsSource :: Bimap (Port Source Open) (Port Source Open)
+  , _matchStatePortsTarget :: Bimap (Port Target Open) (Port Target Open)
   -- ^ A 1:1 correspondence of ports in the pattern (left) and the graph (right)
   , _matchStateEdges :: Bimap HyperEdgeId HyperEdgeId
   -- ^ A 1:1 correspondence between hyperedges in the pattern (left) and graph (right)
@@ -145,9 +145,9 @@ matchPort p@(Port (Gen pe) pi) q@(Port (Gen qe) qi) = void $ do
 -- the matched Source/Target ports. The code below is hideous!!
 matchWire
   :: (Eq sig, MonadMatch sig m)
-  => (Port L Open, Port R Open)
+  => (Port Source Open, Port Target Open)
   -- ^ A wire in the pattern is uniquely identified by the two ports it connects
-  -> (Port L Open, Port R Open)
+  -> (Port Source Open, Port Target Open)
   -- ^ An proposed matching wire in the graph
   -> m ()
 matchWire (pa, pb) (qa, qb) = do
@@ -159,15 +159,20 @@ matchWire (pa, pb) (qa, qb) = do
   matchPort pa qa
   -- TODO: check both matched
   when (not $ isBoundary pa) $
-    gets (pairedOrMissing pa qa . _matchStatePortsL) >>= guard
+    gets (pairedOrMissing pa qa . _matchStatePortsSource) >>= guard
   modify
-    (\m -> m { _matchStatePortsL = Bimap.insert pa qa (_matchStatePortsL m) })
+    (\m -> m {
+      _matchStatePortsSource = Bimap.insert pa qa (_matchStatePortsSource m)
+    })
 
   matchPort pb qb
   when (not $ isBoundary pb) $
-    gets (pairedOrMissing pb qb . _matchStatePortsR) >>= guard
+    gets (pairedOrMissing pb qb . _matchStatePortsTarget) >>= guard
   modify
-    (\m -> m { _matchStatePortsR = Bimap.insert pb qb (_matchStatePortsR m) })
+    (\m -> m {
+      _matchStatePortsTarget = Bimap.insert pb qb (_matchStatePortsTarget m)
+    })
+
   where
     isBoundary (Port Boundary _) = True
     isBoundary _ = False
@@ -187,11 +192,11 @@ unmatchedEdges = do
 
 -- | A list of unmatched *source* ports.
 -- That is, source ports present in the context, but not in the matching.
-unmatchedPorts :: MonadMatch sig m => m [Port L Open]
+unmatchedPorts :: MonadMatch sig m => m [Port Source Open]
 unmatchedPorts = do
   graphPorts <- asks (Map.keys . connections . _matchEnvGraph)
   mat <- get
-  let f q = Bimap.memberR q (_matchStatePortsL mat)
+  let f q = Bimap.memberR q (_matchStatePortsSource mat)
   return (filter (not . f) graphPorts)
 
 -- | Return a list of matching candidates for a port in the pattern.
@@ -204,7 +209,7 @@ unmatchedPorts = do
 --
 -- Otherwise, it returns a list of possible matches.
 matchCandidates
-  :: (Eq sig, MonadMatch sig m) => Port L Open -> m [Port L Open]
+  :: (Eq sig, MonadMatch sig m) => Port Source Open -> m [Port Source Open]
 -- *any* port in an *unmatched* hyperedge?
 -- TODO: maybe the hyperedge shouldn't be matched?
 matchCandidates (Port Boundary i) = unmatchedPorts
@@ -223,7 +228,7 @@ matchCandidates (Port (Gen e) i) = do
 -- | A single step of matching: given a single port in the pattern,
 -- find the wire it is part of, and match it to one in the graph.
 -- If the port is already matched, this does nothing.
-matchStep :: (Eq sig, MonadMatch sig m) => Port L Open -> m ()
+matchStep :: (Eq sig, MonadMatch sig m) => Port Source Open -> m ()
 matchStep ps = do
   pt <- toTarget ps . _matchEnvPattern <$> ask
 
@@ -237,21 +242,21 @@ matchStep ps = do
 -- | TODO: REMOVE PARTIAL FUNCTION
 -- Idea: replace with "fail all matches", or allow disconnected generators to
 -- match?
-toTarget :: Port L Open -> OpenHypergraph sig -> Port R Open
+toTarget :: Port Source Open -> OpenHypergraph sig -> Port Target Open
 toTarget src = maybe onErr id . Map.lookup src . connections
   where
     onErr = error $ "cannot match unconnected port " ++ show src
 
 matchAll
   :: (Eq sig, MonadMatch sig m)
-  => [Port L Open]
+  => [Port Source Open]
   -> m ()
 matchAll = void . mapM matchStep
 
 -- | True if all pattern ports have been matched.
 allMatched :: MonadMatch sig m => m Bool
 allMatched = do
-  numMatchedWires <- Bimap.size . _matchStatePortsL <$> get
+  numMatchedWires <- Bimap.size . _matchStatePortsSource <$> get
   numPatternWires <- Map.size . connections . _matchEnvPattern <$> ask
   return $ numPatternWires == numMatchedWires
 
