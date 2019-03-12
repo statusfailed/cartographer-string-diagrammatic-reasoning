@@ -50,6 +50,12 @@ operations =
   , snd . Layout.placeGenerator unit    1 0 0
   , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 0) 0)
+  -- move vertical
+  -- move horizontal
+  --  move into "wire" column - creates new column.
+  -- add column?
+  -- move many?
+  -- verify everything connected (before matching)
   ]
 
 runOperations xs = foldl (flip (.)) id xs Layout.empty
