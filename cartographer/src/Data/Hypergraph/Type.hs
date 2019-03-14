@@ -107,7 +107,7 @@ data Open a = Boundary | Gen a
 type OpenHypergraph sig = Hypergraph Open sig
 
 -------------------------------
--- Can we build useful graphs?
+-- Basic graphs
 
 -- | The empty hypergraph
 empty :: Hypergraph Open sig
@@ -141,6 +141,9 @@ addEdge e sig g = g
 -- | Connect two ports in the hypergraph.
 -- If the source port was already connected to something, that connection is
 -- overwritten.
+-- TODO: FIXME: if the *target* port was already connected to it must ALSO be
+-- overwritten!
+-- NOTE: I think to do this properly we have to replace Map with Bimap.
 connect
   :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
   => Port Source f

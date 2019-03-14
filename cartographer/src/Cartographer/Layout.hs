@@ -11,6 +11,7 @@ import qualified Data.Map.Strict as Map
 
 import Linear.V2
 import Data.Maybe (catMaybes)
+import Control.Monad (liftM2)
 
 import Data.Hypergraph
   ( Hypergraph, Port(..), Open(..), Source, Target
@@ -30,11 +31,17 @@ newtype Layer = Layer { unLayer :: Int }
 newtype Offset = Offset { unOffset :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
 
--- | Tiles are user-manipulable 1xN shapes laid out on the grid.
--- They either
-data Tile
-  = Generator HyperEdgeId
-  | Pseudo (Port Source Open) (Port Target Open)
+-- | A pseudonode is uniquely identified by the two ports it helps connect,
+-- and its offset from the source node.
+-- Its x-position is exactly the source port's x position plus the offset.
+data PseudoNode = PseudoNode (Port Source Open) (Port Target Open) Int
+  deriving(Eq, Ord, Read, Show)
+
+-- | Tiles are user-manipulable 1xN shapes laid out on the grid.  A tile is
+-- either a 1xN generator (Hyperedge) or a 1x1 Pseudonode (identity)
+data Tile a
+  = TileHyperEdge a
+  | TilePseudoNode PseudoNode
   deriving(Eq, Ord, Read, Show)
 
 fromLayerOffset :: Layer -> Offset -> V2 Int
@@ -46,7 +53,7 @@ fromLayerOffset (Layer i) (Offset j) = V2 i j
 data Layout sig = Layout
   { hypergraph :: OpenHypergraph sig
   -- ^ the underlying hypergraph to be laid out
-  , positions  :: Grid HyperEdgeId
+  , grid       :: Grid (Tile HyperEdgeId) -- previously Grid HyperEdgeId
   -- ^ Position of each HyperEdge in the layout.
   , nextHyperEdgeId :: HyperEdgeId
   -- ^ Next free ID to add a HyperEdge.
@@ -58,24 +65,14 @@ data Layout sig = Layout
 empty :: Layout sig
 empty = Layout
   { hypergraph      = Hypergraph.empty
-  , positions       = Grid.empty
+  , grid            = Grid.empty
   , nextHyperEdgeId = 0
   }
 
 -- | Width/Height of the Layout in tiles
 -- TODO: don't use a fixed "buffer" of 5 for all tiles' heights!
 dimensions :: Layout sig -> V2 Int
-dimensions = Grid.dimensions . positions
-
--- TODO: consider if this is the right interface.
--- NOTE: Leaving unsafe use of ! in the datastructure, because if it ever
--- fails then there are bugs elsewhere!
-positioned :: Ord sig => Layout sig -> [(sig, Position)]
-positioned layout
-  = fmap lookupSigs . Map.toList . Grid.positions . positions $ layout
-  where
-    lookupSigs (edgeId, pos) = (Hypergraph.signatures hg ! edgeId, pos)
-    hg = hypergraph layout
+dimensions = Grid.dimensions . grid
 
 -- | Insert a generator into a specific layer, at a particular offset.
 -- If it would overlap with another generator, the generators are shifted down.
@@ -99,9 +96,9 @@ placeGenerator sig height layer offset l = (nextId, l') where
     { hypergraph = Hypergraph.addEdge edgeId sig (hypergraph l)
     -- Add new edgeId to hypergraph
 
-    , positions =
-        Grid.placeTile edgeId height
-          (fromLayerOffset layer offset) (positions l)
+    , grid =
+        Grid.placeTile (TileHyperEdge edgeId) height
+          (fromLayerOffset layer offset) (grid l)
     -- Finally, placeTile in Grid to update positions.
 
     , nextHyperEdgeId = nextId
@@ -110,6 +107,9 @@ placeGenerator sig height layer offset l = (nextId, l') where
 
 -- | connect two hypergraph ports in the layout.
 -- NOTE: returns the original graph unchanged if ports were invalid.
+-- TODO
+-- If two ports are not adjacent (i.e., target is not immediately to the right
+-- of source), then pseudonodes are also inserted into the Grid.
 connectPorts
   :: Port Source Open
   -- ^ Source port
@@ -120,17 +120,73 @@ connectPorts
 connectPorts s t layout
   = layout { hypergraph = Hypergraph.connect s t (hypergraph layout) }
 
+-- | Number of layers separating two ports.
+layersBetween :: Port Source Open -> Port Target Open -> Layout sig -> Maybe Int
+layersBetween s t l
+  = liftM2 (\t s -> t - s - 1) (target t) (source s)
+  where
+    target = g (width + 1)
+    source = g (-1)
+
+    g bpos (Port Boundary _) = Just bpos
+    g _ (Port (Gen e) _) =
+      fmap getX . Map.lookup (TileHyperEdge e) . Grid.positions . grid $ l
+
+    width = getX (dimensions l)
+    getX (V2 x _) = x
+
+
+-- | Compute which pseudonodes must exist for a given connection
+connectionPseudoNodes
+  :: Port Source Open -> Port Target Open -> Layout sig -> [PseudoNode]
+connectionPseudoNodes source target layout = maybe [] id $ do
+  n <- layersBetween source target layout
+  return $ fmap (PseudoNode source target) [0..n]
+
+--------------------------------------------------------------
+-- Drawing
+
+-- | A thin wrapper around Grid.positions
+-- TODO: replace this interface to return a Map (Tile (Port () Open)) Position ?
+-- Then automatically insert Boundary "generators" and shift all non-boundaries
+-- right by 1.
+-- Computing the Map (Tile HyperEdgeId) Position would just be a simple
+-- filter + fmap on this map...
+positions :: Layout sig -> Map (Tile HyperEdgeId) Position
+positions = Grid.positions . grid
+
+-- TODO: consider if this is the right interface.
+-- NOTE: Leaving unsafe use of ! in the datastructure, because if it ever
+-- fails then there are bugs elsewhere!
+positioned :: Ord sig => Layout sig -> [(sig, Position)]
+positioned layout =
+  fmap lookupSigs . sigTiles . Map.toList . Grid.positions . grid $ layout
+  where
+    lookupSigs (edgeId, pos) = (Hypergraph.signatures hg ! edgeId, pos)
+    hg = hypergraph layout
+
+    sigTiles = catMaybes . fmap f
+      where
+        f (TileHyperEdge e, pos) = Just (e, pos)
+        f (TilePseudoNode _, pos) = Nothing
+
+
 -------------------------------
 -- Wire layout helpers
+-- TODO: most of this needs to be rethought
 
 -- | Position of a port in the layout.
--- TODO: finish this; it's not complete or correct
-positionOf :: Port a Open -> Layout sig -> Maybe Position
-positionOf p l = case p of
+--
+positionOf
+  :: Position -- ^ Position of boundary's 0th tile.
+  -> Port a Open -- ^ Port to find position of
+  -> Layout sig
+  -> Maybe Position
+positionOf boundary p l = case p of
   -- TODO! correct port location :)
   (Port (Gen e) i) ->
-    fmap (+ V2 0 i) (Grid.positions (positions l) !? e)
-  _ -> undefined -- TODO: connecting boundaries!
+    fmap (+ V2 0 i) (Grid.positions (grid l) !? (TileHyperEdge e))
+  (Port Boundary i) -> Just (boundary + V2 0 i)
 
 -- | Return the positions of two ports, if they're adjacent.
 -- NOTE: this is badly named- it isn't quite "adjacent" - this will return
@@ -141,11 +197,12 @@ adjacent
   -> Layout sig
   -> Maybe (Position, Position)
 adjacent source target layout = do
-  v1 <- positionOf source layout
-  v2 <- positionOf target layout
+  v1 <- positionOf (V2 0 0)     source layout
+  v2 <- positionOf (V2 width 0) target layout
   case v2 - v1 of
     V2 1 _  -> Just (v1, v2)
     _       -> Nothing
+  where (V2 width _) = dimensions layout + V2 1 0
 
 connectors :: Layout sig -> [(Position, Position)]
 connectors layout = catMaybes . fmap (($layout) . uncurry adjacent) $ xs
@@ -154,13 +211,11 @@ connectors layout = catMaybes . fmap (($layout) . uncurry adjacent) $ xs
 -------------------------------
 -- TODO
 
-
 -- | Insert a new Layer, corresponding to a new column.
 insertLayer :: Layer -> Layout sig -> Layout sig
 insertLayer i l = undefined
   -- Shift everything >= i up one layer
-  -- Recompute pseudonodes
-
+  -- Recompute pseudonodes for all connections:
 
 addBoundaryNode :: Either Int Int -> Layout sig -> Layout sig
 addBoundaryNode = undefined
