@@ -12,7 +12,7 @@ import qualified Cartographer.Layout as Layout
 import Data.Hypergraph (Hypergraph, Open(..))
 import qualified Data.Hypergraph as Hypergraph
 
-import View
+import View (view, ViewOptions(..))
 import Types
 
 -------------------------------
@@ -107,5 +107,5 @@ viewModel :: Model -> View Action
 viewModel (Model layout numOps) = div_ []
   [ button_ [ onClick (AddNumOps (-1)) ] [ "<<" ]
   , button_ [ onClick (AddNumOps 1   ) ] [ ">>" ]
-  , div_ []  [ viewLayout layout (ViewOptions 50) ]
+  , div_ []  [ View.view layout (ViewOptions 50) ]
   ]

@@ -26,13 +26,18 @@ import Linear.V2 (V2(..))
 -- [(Position,Position)]
 
 -- | All information required to render the Layout
--- TODO: missing sig information!
+-- TODO: missing sig information (what sig information?)
 -- TODO: missing Boundary positions!
+-- TODO: missing tile dimensions!
+-- TODO: missing matchings!
 data Renderable sig v = Renderable
   { tiles :: [(Tile sig, v)]
+  -- ^ Both "real" tiles and Pseudonodes (but what about boundaries!?)
   , wires :: [(v, v)]
   -- ^ The set of wires in the form (source, target).
-  -- This list does not contain connections that span multiple layers.
+  -- This list does *not* contain connections that span multiple layers.
+  , dimensions :: V2 Int
+  -- ^ width/height of the grid (in tiles)
   } deriving(Eq, Ord, Read, Show, Functor)
 
 -- | Change from abstract, tile coordinates to pixel coordinates:
@@ -47,16 +52,24 @@ toPixelCoordinates a = fmap scale
     scale   = fmap ((*a) . fromIntegral)
     stretch = (* V2 2 1)
 
+-- TODO: FIXME (finish implementation)
 toGridCoordinates :: Layout sig -> Renderable sig Position
-toGridCoordinates l = Renderable (toTiles l) (toWires l)
+toGridCoordinates l = Renderable
+  { tiles = toTiles l
+  , wires = toWires l
+  , dimensions = V2 2 0 + Layout.dimensions l
+  }
 
 -- TODO: gross, rewrite D:
+{-# WARNING toTiles "partial function" #-}
 toTiles :: Layout sig -> [(Tile sig, Position)]
 toTiles layout = fmap f . Map.toList . Layout.positions $ layout
   where
     m = Hypergraph.signatures . Layout.hypergraph $ layout
     f (t, v) = case t of
-      TileHyperEdge  e -> (TileHyperEdge (m Map.! e), v + V2 1 0)
+      TileHyperEdge  e -> case Map.lookup e m of
+        Just r  -> (TileHyperEdge r, v + V2 1 0)
+        Nothing -> error $ "toTiles: missing key " ++ show e
       TilePseudoNode p -> (TilePseudoNode p, v + V2 1 0)
 
 -- NOTE: this function returns a list of wires between ADJACENT tiles.
@@ -118,7 +131,9 @@ endpointPosition
   :: Endpoint a -> Int -> Map (Tile HyperEdgeId) Position -> Position
 endpointPosition e bx m = case e of
   TileHyperEdge p   -> portPosition p bx m
-  TilePseudoNode pn -> m Map.! (TilePseudoNode pn)
+  TilePseudoNode pn -> case Map.lookup (TilePseudoNode pn) m of
+    Just r -> r
+    Nothing -> error $ "endpointPosition: missing key " ++ show pn
 
 -- | Find the (tile) Position of a given 'Port'
 -- TODO: WARNING: this (obviously) depends on how generators are positioned!
@@ -130,4 +145,7 @@ portPosition
   -> Position
 portPosition p bx m = case p of
   Port Boundary i -> V2 bx i
-  Port (Gen e)  i -> m Map.! (TileHyperEdge e) + V2 1 i
+  Port (Gen e)  i -> case Map.lookup (TileHyperEdge e) m of
+    Just r  -> r + V2 1 i
+    Nothing -> error $ "portPosition: missing key " ++ show e
+

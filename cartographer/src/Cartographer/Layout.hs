@@ -120,6 +120,9 @@ connectPorts
 connectPorts s t layout
   = layout { hypergraph = Hypergraph.connect s t (hypergraph layout) }
 
+-------------------------------
+-- Pseudnodes
+
 -- | Number of layers separating two ports.
 layersBetween :: Port Source Open -> Port Target Open -> Layout sig -> Maybe Int
 layersBetween s t l
@@ -144,7 +147,7 @@ connectionPseudoNodes source target layout = maybe [] id $ do
   return $ fmap (PseudoNode source target) [0..n]
 
 --------------------------------------------------------------
--- Drawing
+-- Utilities
 
 -- | A thin wrapper around Grid.positions
 -- TODO: replace this interface to return a Map (Tile (Port () Open)) Position ?
@@ -154,59 +157,6 @@ connectionPseudoNodes source target layout = maybe [] id $ do
 -- filter + fmap on this map...
 positions :: Layout sig -> Map (Tile HyperEdgeId) Position
 positions = Grid.positions . grid
-
--- TODO: consider if this is the right interface.
--- NOTE: Leaving unsafe use of ! in the datastructure, because if it ever
--- fails then there are bugs elsewhere!
-positioned :: Ord sig => Layout sig -> [(sig, Position)]
-positioned layout =
-  fmap lookupSigs . sigTiles . Map.toList . Grid.positions . grid $ layout
-  where
-    lookupSigs (edgeId, pos) = (Hypergraph.signatures hg ! edgeId, pos)
-    hg = hypergraph layout
-
-    sigTiles = catMaybes . fmap f
-      where
-        f (TileHyperEdge e, pos) = Just (e, pos)
-        f (TilePseudoNode _, pos) = Nothing
-
-
--------------------------------
--- Wire layout helpers
--- TODO: most of this needs to be rethought
-
--- | Position of a port in the layout.
---
-positionOf
-  :: Position -- ^ Position of boundary's 0th tile.
-  -> Port a Open -- ^ Port to find position of
-  -> Layout sig
-  -> Maybe Position
-positionOf boundary p l = case p of
-  -- TODO! correct port location :)
-  (Port (Gen e) i) ->
-    fmap (+ V2 0 i) (Grid.positions (grid l) !? (TileHyperEdge e))
-  (Port Boundary i) -> Just (boundary + V2 0 i)
-
--- | Return the positions of two ports, if they're adjacent.
--- NOTE: this is badly named- it isn't quite "adjacent" - this will return
--- Nothing if L(target) <= L(source)
-adjacent
-  :: Port Source Open
-  -> Port Target Open
-  -> Layout sig
-  -> Maybe (Position, Position)
-adjacent source target layout = do
-  v1 <- positionOf (V2 0 0)     source layout
-  v2 <- positionOf (V2 width 0) target layout
-  case v2 - v1 of
-    V2 1 _  -> Just (v1, v2)
-    _       -> Nothing
-  where (V2 width _) = dimensions layout + V2 1 0
-
-connectors :: Layout sig -> [(Position, Position)]
-connectors layout = catMaybes . fmap (($layout) . uncurry adjacent) $ xs
-  where xs = Map.toList . Hypergraph.connections . hypergraph $ layout
 
 -------------------------------
 -- TODO

@@ -15,10 +15,13 @@ import Data.String
 import Linear.Vector ((*^))
 import Linear.V2 (V2(..))
 
-import Cartographer.Layout (Layout)
+import Cartographer.Layout (Layout, Tile(..))
 import qualified Cartographer.Layout as Layout
 
 import Cartographer.Types.Grid (Position)
+
+import Cartographer.Draw (Renderable(..))
+import qualified Cartographer.Draw as Draw
 
 import Data.Equivalence (Equivalence)
 import qualified Data.Equivalence as Equivalence
@@ -30,25 +33,36 @@ data ViewOptions = ViewOptions
   { tileSize :: Int
   } deriving(Eq, Ord, Read, Show)
 
-viewLayout :: Layout Generator -> ViewOptions -> View action
-viewLayout layout opts@(ViewOptions tileSize) =
+view :: Layout Generator -> ViewOptions -> View action
+view layout opts = flip viewRenderable opts . Draw.toGridCoordinates $ layout
+
+viewRenderable
+  :: Draw.Renderable Generator Position -> ViewOptions -> View action
+viewRenderable (Renderable tiles wires dimensions) opts@(ViewOptions tileSize) =
   Svg.svg_ svgAttrs
     $ style
-    : gridLines unitSize (fromIntegral <$> dims)
-    : (renderedGenerators ++ renderedConnectors)
+    : gridLines unitSize (fromIntegral <$> dimensions)
+    : (fmap f tiles ++ fmap g wires)
   where
-    unitSize = fromIntegral tileSize
-    sz = V2 tileSize tileSize * V2 2 1 -- double width to accomodate connectors
-    dims@(V2 imgWidth imgHeight) = sz * (Layout.dimensions layout + V2 1 1)
-    svgAttrs = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
-    style = Svg.style_ [Svg.type_' "text/css"] [staticCss]
+    f t = uncurry renderTile t opts
+    g t = uncurry renderWire t opts
+    unitSize      = fromIntegral tileSize
+    style         = Svg.style_ [Svg.type_' "text/css"] [staticCss]
 
-    renderedGenerators = fmap (f viewGenerator) (Layout.positioned layout)
-    f g (x,y) = g x y opts
+    V2 imgHeight imgWidth = dimensions
+    svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
 
-    renderedConnectors
-      = fmap (($unitSize) . uncurry drawConnector) (Layout.connectors layout)
+renderTile :: Tile Generator -> Position -> ViewOptions -> View action
+renderTile (TilePseudoNode p) v = viewPseudoNode p v
+renderTile (TileHyperEdge  g) v = viewGenerator g v
 
+renderWire :: Position -> Position -> ViewOptions -> View action
+renderWire x y (ViewOptions tileSize)
+  = drawConnector (f x) (f y) (fromIntegral tileSize)
+  where
+    scale = (* V2 tileSize tileSize)
+    shift = (* V2 2 1)
+    f = scale . shift
 
 
 -- | Draw a square grid spaced by unitSize pixels over the area specified by
@@ -67,6 +81,10 @@ gridLines unitSize (V2 width height) =
                          , Svg.x1_ (ms x), Svg.x2_ (ms x) ] ++ displayOpts) []
 
     displayOpts = [ Svg.stroke_ "#eeeeee", Svg.strokeDasharray_ "5,5" ]
+
+{-# WARNING viewPseudoNode "incomplete implementation" #-}
+viewPseudoNode :: Layout.PseudoNode -> V2 Int -> ViewOptions -> View action
+viewPseudoNode _ pos (ViewOptions tileSize) = Svg.g_ [] []
 
 -- View a Position-annotated generator
 -- Generic drawing:
