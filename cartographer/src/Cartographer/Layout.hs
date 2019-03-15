@@ -58,7 +58,7 @@ data Layout sig = Layout
   , nextHyperEdgeId :: HyperEdgeId
   -- ^ Next free ID to add a HyperEdge.
   -- TODO: put this in Hypergraph?
-  } deriving(Eq, Ord, Read, Show)
+  } deriving(Eq, Ord, Show)
 
 -- | The empty layout state. An empty hypergraph, nothing positioned, and no
 -- hyperedges yet created.

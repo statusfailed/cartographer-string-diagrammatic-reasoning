@@ -20,6 +20,9 @@ import qualified Cartographer.Types.Grid as Grid
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
+import Data.Bimap (Bimap)
+import qualified Data.Bimap as Bimap
+
 import Linear.V2 (V2(..))
 
 -- [(Tile, Position)]
@@ -92,7 +95,7 @@ type Wire = (Port Source Open, Port Target Open)
 -- Get the "raw" connectivity information from the layout - i.e. all wires,
 -- including those that span multiple layers.
 allWires :: Layout sig -> [Wire]
-allWires = Map.toList . Hypergraph.connections . Layout.hypergraph
+allWires = Bimap.toList . Hypergraph.connections . Layout.hypergraph
 
 -------------------------------
 -- Breaking up wires

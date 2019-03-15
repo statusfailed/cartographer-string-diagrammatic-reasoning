@@ -22,6 +22,9 @@ module Data.Hypergraph.Type
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
+import Data.Bimap (Bimap)
+import qualified Data.Bimap as Bimap
+
 import Data.Equivalence (Equivalence)
 import qualified Data.Equivalence as Equivalence
 
@@ -64,7 +67,7 @@ deriving instance Show (f HyperEdgeId) => Show (Port a f)
 -- uniquely by the two Ports they connect. In an 'OpenHypergraph', this
 -- corresponds to having the "Source" port on the Boundary.
 data Hypergraph f sig = Hypergraph
-  { connections :: Map (Port Source f) (Port Target f) -- ^ Why not a Bimap?
+  { connections :: Bimap (Port Source f) (Port Target f)
   , signatures  :: Map HyperEdgeId sig
   }
 
@@ -77,7 +80,7 @@ data Hypergraph f sig = Hypergraph
 deriving instance (Eq sig  , Eq   (f HyperEdgeId)) => Eq (Hypergraph f sig)
 deriving instance (Ord sig , Ord  (f HyperEdgeId)) => Ord (Hypergraph f sig)
 -- odd, why do we need an Ord instance here?
-deriving instance (Read sig, Ord  (f HyperEdgeId), Read (f HyperEdgeId)) => Read (Hypergraph f sig)
+-- deriving instance (Read sig, Ord  (f HyperEdgeId), Read (f HyperEdgeId)) => Read (Hypergraph f sig)
 deriving instance (Show sig, Show (f HyperEdgeId)) => Show (Hypergraph f sig)
 
 -- | The type of closed Hypergraphs, i.e. those hypergraphs with no "dangling
@@ -111,18 +114,18 @@ type OpenHypergraph sig = Hypergraph Open sig
 
 -- | The empty hypergraph
 empty :: Hypergraph Open sig
-empty = Hypergraph Map.empty Map.empty
+empty = Hypergraph Bimap.empty Map.empty
 
 -- | The identity morphism
 identity :: Hypergraph Open sig
 identity = Hypergraph conns sigs
   where
-    conns = Map.fromList [(Port Boundary 0, Port Boundary 0)]
+    conns = Bimap.fromList [(Port Boundary 0, Port Boundary 0)]
     sigs  = Map.empty
 
 -- | the "twist" morphism
 twist = Hypergraph conns Map.empty where
-  conns = Map.fromList
+  conns = Bimap.fromList
     [ (Port Boundary 0, Port Boundary 1)
     , (Port Boundary 1, Port Boundary 0)
     ]
@@ -139,11 +142,8 @@ addEdge e sig g = g
   }
 
 -- | Connect two ports in the hypergraph.
--- If the source port was already connected to something, that connection is
--- overwritten.
--- TODO: FIXME: if the *target* port was already connected to it must ALSO be
--- overwritten!
--- NOTE: I think to do this properly we have to replace Map with Bimap.
+-- If the source or target port was already connected to something, that
+-- connection is overwritten.
 --
 -- As-is, this does not prevent cycles.
 -- CARTOGRAPHER relies on the Layout class to enforce this, by only allowing
@@ -158,7 +158,7 @@ connect
   -- ^ Hypergraph to modify
   -> Hypergraph f sig
 -- overwrites connection if p1 or p2 was already connected!
-connect p1 p2 hg = hg { connections = Map.insert p1 p2 (connections hg) }
+connect p1 p2 hg = hg { connections = Bimap.insert p1 p2 (connections hg) }
 
 -------------------------------
 -- Operations / Traversals

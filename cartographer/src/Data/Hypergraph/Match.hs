@@ -29,7 +29,7 @@ import Control.Monad.Logic
 data MatchEnv sig = MatchEnv
   { _matchEnvPattern :: OpenHypergraph sig
   , _matchEnvGraph   :: OpenHypergraph sig
-  } deriving (Eq, Ord, Read, Show)
+  } deriving (Eq, Ord, Show)
 
 -- | A matching consists of two 1:1 correspondences:
 --    1) Between ports in the pattern and the graph
@@ -194,7 +194,7 @@ unmatchedEdges = do
 -- That is, source ports present in the context, but not in the matching.
 unmatchedPorts :: MonadMatch sig m => m [Port Source Open]
 unmatchedPorts = do
-  graphPorts <- asks (Map.keys . connections . _matchEnvGraph)
+  graphPorts <- asks (Bimap.keys . connections . _matchEnvGraph)
   mat <- get
   let f q = Bimap.memberR q (_matchStatePortsSource mat)
   return (filter (not . f) graphPorts)
@@ -243,7 +243,7 @@ matchStep ps = do
 -- Idea: replace with "fail all matches", or allow disconnected generators to
 -- match?
 toTarget :: Port Source Open -> OpenHypergraph sig -> Port Target Open
-toTarget src = maybe onErr id . Map.lookup src . connections
+toTarget src = maybe onErr id . Bimap.lookup src . connections
   where
     onErr = error $ "cannot match unconnected port " ++ show src
 
@@ -257,7 +257,7 @@ matchAll = void . mapM matchStep
 allMatched :: MonadMatch sig m => m Bool
 allMatched = do
   numMatchedWires <- Bimap.size . _matchStatePortsSource <$> get
-  numPatternWires <- Map.size . connections . _matchEnvPattern <$> ask
+  numPatternWires <- Bimap.size . connections . _matchEnvPattern <$> ask
   return $ numPatternWires == numMatchedWires
 
 -- | Match a pattern in a context.
@@ -269,7 +269,7 @@ allMatched = do
 match :: Eq sig => OpenHypergraph sig -> OpenHypergraph sig -> [MatchState sig]
 match pattern graph = fmap snd $ runMatch pattern graph (matchAll ps)
   where
-    ps = Map.keys (connections pattern)
+    ps = Bimap.keys (connections pattern)
     -- TODO: for efficiency, use bfs.
     -- Left ports, matched in breadth-first order.
     ps' = Hypergraph.bfs pattern
