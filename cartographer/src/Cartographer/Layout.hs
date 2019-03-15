@@ -106,10 +106,14 @@ placeGenerator sig height layer offset l = (nextId, l') where
     }
 
 -- | connect two hypergraph ports in the layout.
--- NOTE: returns the original graph unchanged if ports were invalid.
--- TODO
--- If two ports are not adjacent (i.e., target is not immediately to the right
--- of source), then pseudonodes are also inserted into the Grid.
+--
+-- If any of the following are true, the connection is not made:
+--    * ports are invalid
+--    * L(target) <= L(source)
+--
+-- Additionally, A maximum if L(target) - L(source) - 1 pseudonodes are
+-- inserted into the grid.
+{-# WARNING connectPorts "incomplete: pseudonodes not added" #-}
 connectPorts
   :: Port Source Open
   -- ^ Source port
@@ -123,7 +127,29 @@ connectPorts s t layout
 -------------------------------
 -- Pseudnodes
 
+-- source :: Port Source Open
+-- target :: Port Target Open
+-- Cases:
+--    1) source + target already connected
+--    2) source + target both disconnected
+--    3) source connected to other target
+--    4) target connected to other source
+--
+
+-- | Add a pseudonodes into the grid.
+addPseudoNode :: PseudoNode -> Position -> Layout sig -> Layout sig
+addPseudoNode pseudo v layout = layout
+  { grid = Grid.placeTile (TilePseudoNode pseudo) 1 v (grid layout) }
+
+-- | Compute which pseudonodes must exist for a given connection
+connectionPseudoNodes
+  :: Port Source Open -> Port Target Open -> Layout sig -> [PseudoNode]
+connectionPseudoNodes source target layout = maybe [] id $ do
+  n <- layersBetween source target layout
+  return $ fmap (PseudoNode source target) [0..n]
+
 -- | Number of layers separating two ports.
+-- Returns Nothing if ports
 layersBetween :: Port Source Open -> Port Target Open -> Layout sig -> Maybe Int
 layersBetween s t l
   = liftM2 (\t s -> t - s - 1) (target t) (source s)
@@ -137,14 +163,6 @@ layersBetween s t l
 
     width = getX (dimensions l)
     getX (V2 x _) = x
-
-
--- | Compute which pseudonodes must exist for a given connection
-connectionPseudoNodes
-  :: Port Source Open -> Port Target Open -> Layout sig -> [PseudoNode]
-connectionPseudoNodes source target layout = maybe [] id $ do
-  n <- layersBetween source target layout
-  return $ fmap (PseudoNode source target) [0..n]
 
 --------------------------------------------------------------
 -- Utilities

@@ -64,7 +64,6 @@ renderWire x y (ViewOptions tileSize)
     shift = (* V2 2 1)
     f = scale . shift
 
-
 -- | Draw a square grid spaced by unitSize pixels over the area specified by
 -- the vector.
 gridLines :: Double -> V2 Double -> View action

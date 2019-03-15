@@ -144,6 +144,10 @@ addEdge e sig g = g
 -- TODO: FIXME: if the *target* port was already connected to it must ALSO be
 -- overwritten!
 -- NOTE: I think to do this properly we have to replace Map with Bimap.
+--
+-- As-is, this does not prevent cycles.
+-- CARTOGRAPHER relies on the Layout class to enforce this, by only allowing
+-- ports in shallower layers to connect to deeper ones.
 connect
   :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
   => Port Source f
