@@ -23,6 +23,7 @@ import qualified Data.Map.Strict as Map
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
+import Linear.Vector ((*^))
 import Linear.V2 (V2(..))
 
 -- [(Tile, Position)]
@@ -43,24 +44,12 @@ data Renderable sig v = Renderable
   -- ^ width/height of the grid (in tiles)
   } deriving(Eq, Ord, Read, Show, Functor)
 
--- | Change from abstract, tile coordinates to pixel coordinates:
---  1) Scale x by 2 to leave "gap" columns for wires
---  2) Change wire coordinates to edges of tiles (not top-left :))
-toPixelCoordinates
-  :: Double
-  -> Renderable sig Position
-  -> Renderable sig (V2 Double)
-toPixelCoordinates a = fmap scale
-  where
-    scale   = fmap ((*a) . fromIntegral)
-    stretch = (* V2 2 1)
-
 -- TODO: FIXME (finish implementation)
 toGridCoordinates :: Layout sig -> Renderable sig Position
 toGridCoordinates l = Renderable
   { tiles = toTiles l
   , wires = toWires l
-  , dimensions = V2 2 0 + Layout.dimensions l
+  , dimensions = Layout.dimensions l
   }
 
 -- TODO: gross, rewrite D:
@@ -135,7 +124,7 @@ endpointPosition
 endpointPosition e bx m = case e of
   TileHyperEdge p   -> portPosition p bx m
   TilePseudoNode pn -> case Map.lookup (TilePseudoNode pn) m of
-    Just r -> r
+    Just r -> r + V2 1 0
     Nothing -> error $ "endpointPosition: missing key " ++ show pn
 
 -- | Find the (tile) Position of a given 'Port'
@@ -151,4 +140,3 @@ portPosition p bx m = case p of
   Port (Gen e)  i -> case Map.lookup (TileHyperEdge e) m of
     Just r  -> r + V2 1 i
     Nothing -> error $ "portPosition: missing key " ++ show e
-

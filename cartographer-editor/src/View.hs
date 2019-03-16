@@ -29,6 +29,8 @@ import qualified Data.Equivalence as Equivalence
 import Drawing
 import Types
 
+import Debug.Trace (traceShow)
+
 data ViewOptions = ViewOptions
   { tileSize :: Int
   } deriving(Eq, Ord, Read, Show)
@@ -41,31 +43,33 @@ viewRenderable
 viewRenderable (Renderable tiles wires dimensions) opts@(ViewOptions tileSize) =
   Svg.svg_ svgAttrs
     [ diagramStyle
-    , gridLines (fromIntegral tileSize) (fromIntegral <$> scaledDims)
+    , gridLines (fromIntegral tileSize) scaledDims
     , Svg.g_ [] (fmap f tiles)
     , Svg.g_ [] (fmap g wires)
     ]
   where
-    f t = uncurry renderTile t opts
-    g t = uncurry renderWire t opts
+    f t = uncurry viewTile t opts
+    g t = uncurry viewWire t opts
 
-    scaledDims = tileSize *^ (dimensions + V2 5 5)
-    V2 imgHeight imgWidth = scaledDims
+    -- TODO: remove random +5 to y dimension (fix Layout.dimensions!)
+    scaledDims = fmap fromIntegral (tileSize *^ V2 2 1 * (V2 0 5 + dimensions))
+    V2 imgWidth imgHeight = scaledDims
     svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
 
-renderTile :: Tile Generator -> Position -> ViewOptions -> View action
-renderTile (TilePseudoNode p) v = viewPseudoNode p v
-renderTile (TileHyperEdge  g) v = viewGenerator g v
+viewTile :: Tile Generator -> Position -> ViewOptions -> View action
+viewTile (TilePseudoNode p) v = viewPseudoNode p v
+viewTile (TileHyperEdge  g) v = viewGenerator g v
 
-renderWire :: Position -> Position -> ViewOptions -> View action
-renderWire x y (ViewOptions tileSize)
+-- | Render a wire in pixel coordinates between two integer grid positions
+viewWire :: Position -> Position -> ViewOptions -> View action
+viewWire x y (ViewOptions tileSize)
   = wrap $ connector (f 1 x) (f 0 y) -- dodgy af
   where
     scale   = (* V2 tileSize tileSize)
     stretch = (* V2 2 1)
-    shift x = (+ V2 x 0)
+    shift a = (+ V2 a 0)
     offset  = (+ V2 0 (fromIntegral tileSize / 2))
-    f x = offset . fmap fromIntegral . scale . shift x . stretch
+    f a = offset . fmap fromIntegral . scale . shift a . stretch
 
     wrap = Svg.g_ [Svg.class_' "wire"] . pure
 
@@ -90,12 +94,12 @@ gridLines unitSize (V2 width height) =
 -- | View a pseudonode
 -- TODO: make these movable! Will require use of the 'PseudoNode' ID.
 viewPseudoNode :: Layout.PseudoNode -> V2 Int -> ViewOptions -> View action
-viewPseudoNode _ pos (ViewOptions tileSize) = connector start end
+viewPseudoNode _ pos (ViewOptions tileSize) = connectorWith "red" start end
   where
     unitSize = fromIntegral tileSize
-    realPos = V2 2.0 1.0 * fmap fromIntegral pos :: V2 Double
-    start   = realPos + V2 0.0 (unitSize / 2.0)
-    end     = start + V2 1.0 0.0
+    realPos = unitSize *^ V2 2 1 * fmap fromIntegral (traceShow pos pos)
+    start   = realPos + V2 0.0 (unitSize / 2.0) :: V2 Double
+    end     = start + V2 unitSize 0.0
 
 -- View a Position-annotated generator
 -- Generic drawing:

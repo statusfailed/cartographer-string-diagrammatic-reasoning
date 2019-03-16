@@ -188,7 +188,7 @@ connectionPseudoNodes
   :: Port Source Open -> Port Target Open -> Layout sig -> [PseudoNode]
 connectionPseudoNodes source target layout = maybe [] id $ do
   n <- layersBetween source target layout
-  return $ fmap (PseudoNode source target) [0..n - 1]
+  return $ fmap (PseudoNode source target) [0..n-1]
 
 -- | Number of layers separating two ports.
 -- Returns Nothing if ports

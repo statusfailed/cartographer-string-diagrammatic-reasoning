@@ -42,8 +42,19 @@ data Model = Model
   , numOps :: Int
   } deriving(Eq, Ord, Show)
 
-operations :: [Layout Generator -> Layout Generator]
-operations =
+operations = pseudotest
+
+pseudotest :: [Layout Generator -> Layout Generator]
+pseudotest =
+  [ snd . Layout.placeGenerator unit   1 0 0
+  -- TODO: this is broken :(
+  -- , snd . Layout.placeGenerator copy   3 1 0 -- gets in way of pseudo!
+  , snd . Layout.placeGenerator counit 1 2 1
+  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 0)
+  ]
+
+bigtest :: [Layout Generator -> Layout Generator]
+bigtest =
   [ snd . Layout.placeGenerator counit  1 1 4
   , snd . Layout.placeGenerator py      3 1 0
   , snd . Layout.placeGenerator copy    3 0 2
