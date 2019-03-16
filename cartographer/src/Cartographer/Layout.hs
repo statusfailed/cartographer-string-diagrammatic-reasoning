@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleContexts #-}
 -- | The main interface for editing a Hypergraph via a UI.
 -- the 'Layout' type includes position and pseudonode information for each
 -- hyperedgein the graph, and provides methods for safely making changes to the underlying graph.
@@ -14,7 +15,7 @@ import Data.Maybe (catMaybes)
 import Control.Monad (liftM2)
 
 import Data.Hypergraph
-  ( Hypergraph, Port(..), Open(..), Source, Target
+  ( Hypergraph, Port(..), PortRole(..), Open(..), Source, Target
   , OpenHypergraph(..), HyperEdgeId(..)
   )
 import qualified Data.Hypergraph as Hypergraph
@@ -24,6 +25,8 @@ import qualified Cartographer.Types.Grid as Grid
 
 import Data.Equivalence (Equivalence)
 import qualified Data.Equivalence as Equivalence
+
+import Data.Reflection
 
 newtype Layer = Layer { unLayer :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
@@ -70,12 +73,13 @@ empty = Layout
   }
 
 -- | Width/Height of the Layout in tiles
--- TODO: don't use a fixed "buffer" of 5 for all tiles' heights!
+-- TODO: account for number of boundary nodes
 dimensions :: Layout sig -> V2 Int
-dimensions = Grid.dimensions . grid
+dimensions = V2 2 0 + Grid.dimensions . grid
 
 -- | Insert a generator into a specific layer, at a particular offset.
 -- If it would overlap with another generator, the generators are shifted down.
+-- TODO: rename placeGenerator to something more consistent?
 placeGenerator
   :: Hypergraph.Signature sig
   => sig
@@ -107,13 +111,14 @@ placeGenerator sig height layer offset l = (nextId, l') where
 
 -- | connect two hypergraph ports in the layout.
 --
+-- TODO:
 -- If any of the following are true, the connection is not made:
 --    * ports are invalid
 --    * L(target) <= L(source)
 --
 -- Additionally, A maximum if L(target) - L(source) - 1 pseudonodes are
 -- inserted into the grid.
-{-# WARNING connectPorts "incomplete: pseudonodes not added" #-}
+{-# WARNING connectPorts "partial function" #-}
 connectPorts
   :: Port Source Open
   -- ^ Source port
@@ -121,32 +126,69 @@ connectPorts
   -- ^ Target port
   -> Layout sig
   -> Layout sig
-connectPorts s t layout
-  = layout { hypergraph = Hypergraph.connect s t (hypergraph layout) }
+connectPorts s t layout = layout'
+  { hypergraph = Hypergraph.connect s t (hypergraph layout') }
+  where
+    cleanS l =
+      if Hypergraph.target s (hypergraph l) /= Just t
+        then disconnectSource s l
+        else l
+    cleanT l =
+      if Hypergraph.source t (hypergraph l) /= Just s
+        then disconnectTarget t l
+        else l
+
+    base l = maybe err id (generatorPosition s l)
+      where err = error $ "connectPorts: lookup error " ++ show s
+
+    addPseudo pn@(PseudoNode _ _ i) l = addPseudoNode pn (base l + offset) l
+      where offset = V2 i 0
+
+    withPseudos l = foldl (flip addPseudo) l $ connectionPseudoNodes s t l
+
+    layout' = withPseudos . cleanS . cleanT $ layout
+
+-------------------------------
+-- TODO: NOTE: there is definitely a nicer way to write the below two
+-- functions.....
+-- Can we make "disconnect" operate on a WIRE instead? (i.e. pair of ports?)
+-------------------------------
+
+-- | Remove all the pseudonodes for a given source port
+-- if the port has no target, do nothing.
+disconnectSource
+  :: Port Source Open -> Layout sig -> Layout sig
+disconnectSource s l = case Hypergraph.target s (hypergraph l) of
+  Just t  -> foldl (flip removePseudoNode) l (connectionPseudoNodes s t l)
+  Nothing -> l
+
+-- | Remove all the pseudonodes for a given target port
+-- if the port has no source, do nothing.
+disconnectTarget
+  :: Port Target Open -> Layout sig -> Layout sig
+disconnectTarget t l = case Hypergraph.source t (hypergraph l) of
+  Just s  -> foldl (flip removePseudoNode) l (connectionPseudoNodes s t l)
+  Nothing -> l
 
 -------------------------------
 -- Pseudnodes
-
--- source :: Port Source Open
--- target :: Port Target Open
--- Cases:
---    1) source + target already connected
---    2) source + target both disconnected
---    3) source connected to other target
---    4) target connected to other source
---
 
 -- | Add a pseudonodes into the grid.
 addPseudoNode :: PseudoNode -> Position -> Layout sig -> Layout sig
 addPseudoNode pseudo v layout = layout
   { grid = Grid.placeTile (TilePseudoNode pseudo) 1 v (grid layout) }
 
+-- | Remove a pseudonode from the grid
+removePseudoNode :: PseudoNode -> Layout sig -> Layout sig
+removePseudoNode pseudo layout = layout
+  { grid = Grid.removeTile (TilePseudoNode pseudo) (grid layout) }
+
 -- | Compute which pseudonodes must exist for a given connection
 connectionPseudoNodes
   :: Port Source Open -> Port Target Open -> Layout sig -> [PseudoNode]
 connectionPseudoNodes source target layout = maybe [] id $ do
   n <- layersBetween source target layout
-  return $ fmap (PseudoNode source target) [0..n]
+  return $ fmap (PseudoNode source target) [0..n - 1]
 
 -- | Number of layers separating two ports.
 -- Returns Nothing if ports
@@ -175,6 +217,18 @@ layersBetween s t l
 -- filter + fmap on this map...
 positions :: Layout sig -> Map (Tile HyperEdgeId) Position
 positions = Grid.positions . grid
+
+-- | Get the position of a port's generator.
+generatorPosition
+  :: Reifies a PortRole
+  => Port a Open -> Layout sig -> Maybe Position
+generatorPosition p l = case p of
+  Port Boundary i -> return (V2 bx i) -- bx depends on port role
+  Port (Gen e) i  -> fmap (+ V2 1 i) . Grid.positionOf (TileHyperEdge e) $ g
+  where
+    g       = grid l
+    V2 w h  = Grid.dimensions g
+    bx      = if Hypergraph.toPortRole p == Source then 0 else w + 2
 
 -------------------------------
 -- TODO

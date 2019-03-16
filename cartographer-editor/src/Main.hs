@@ -3,7 +3,7 @@
 module Main where
 
 import Miso
-import Miso.String (MisoString(..))
+import Miso.String (MisoString(..), ms)
 import Miso.Subscription.Keyboard (arrowsSub, Arrows(..))
 
 import Cartographer.Layout (Layout)
@@ -40,7 +40,7 @@ counit = Generator (1, 0) ([0], []) "black" "counit"
 data Model = Model
   { layout :: Layout Generator
   , numOps :: Int
-  } deriving(Eq, Ord, Read, Show)
+  } deriving(Eq, Ord, Show)
 
 operations :: [Layout Generator -> Layout Generator]
 operations =
@@ -50,6 +50,11 @@ operations =
   , snd . Layout.placeGenerator unit    1 0 0
   , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 0) 0)
+  -- Wires to boundaries
+  -- TODO
+  -- Wires requiring pseudonodes
+  -- , snd . Layout.placeGenerator unit    1 2 0
+  -- , Layout.connectPorts (Hypergraph.Port (Gen 2) 1) (Hypergraph.Port (Gen 4) 0)
   -- move vertical
   -- move horizontal
   --  move into "wire" column - creates new column.
@@ -104,8 +109,9 @@ updateModel action m = case action of
     clamp= max 0 . min (length operations)
 
 viewModel :: Model -> View Action
-viewModel (Model layout numOps) = div_ []
+viewModel m@(Model layout numOps) = div_ []
   [ button_ [ onClick (AddNumOps (-1)) ] [ "<<" ]
   , button_ [ onClick (AddNumOps 1   ) ] [ ">>" ]
-  , div_ []  [ View.view layout (ViewOptions 50) ]
+  , div_ [] [ View.view layout (ViewOptions 50) ]
+  , div_ [] [ text (ms $ show m) ]
   ]

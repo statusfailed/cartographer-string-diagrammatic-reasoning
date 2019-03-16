@@ -46,6 +46,16 @@ delete a eq@(Equivalence cls members) = case Map.lookup a cls of
       let r = Set.delete a members
       in  if Set.null r then Nothing else Just r
 
+-- | Remove an entire class from the Equivalence, returning the set of removed
+-- elements, which is empty if the class was not present.
+deleteClass
+  :: (Ord a, Ord c) => c -> Equivalence a c -> (Equivalence a c, Set a)
+deleteClass c eq@(Equivalence cls members) = case membersOf c eq of
+  ms
+    | Set.null ms -> (eq, ms)
+    | otherwise   -> (Equivalence cls' (Map.delete c members), ms)
+      where cls' = foldr Map.delete cls (Set.toList ms)
+
 -- | Put 'a' into the equivalence class 'c'
 -- NOTE: to ensure that the Equivalence remains a partition,
 -- if 'a' already appears under the key 'c', then it will first be removed.

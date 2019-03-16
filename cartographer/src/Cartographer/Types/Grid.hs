@@ -15,6 +15,9 @@ import qualified Data.Equivalence as Equivalence
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
+import Data.Set (Set)
+import qualified Data.Set as Set
+
 import Data.Foldable (minimum)
 import Data.Maybe (isJust)
 
@@ -93,6 +96,15 @@ placeTile tile h v grid@(Grid eq) =
     -- Place the tile into the position equivalence.
     place g = foldr (flip Equivalence.equate tile) g vs
 
+removeTile :: Ord tile => tile -> Grid tile -> Grid tile
+removeTile t (Grid eq) = Grid (fst $ Equivalence.deleteClass t eq)
+
+-- | Get the least-offset position of a tile in a 'Grid'.
+-- In a left-to-right rendering, this means the topmost square of a tile.
+positionOf :: Ord tile => tile -> Grid tile -> Maybe Position
+positionOf tile grid =
+  let s = Equivalence.membersOf tile (_gridPositions grid)
+  in  if Set.null s then Nothing else Just . minimum $ Set.toList s
 
 -- Get the top-most position of each tile in the grid
 -- (i.e., the position of its topmost tile).

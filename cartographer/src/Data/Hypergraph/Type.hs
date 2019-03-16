@@ -1,7 +1,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Data.Hypergraph.Type
   ( Signature(..)
   , HyperEdgeId(..)
@@ -10,12 +11,18 @@ module Data.Hypergraph.Type
   , OpenHypergraph(..)
   , Source
   , Target
+  , PortRole(..)
   , Open(..)
+  , toPortRole
   , Hypergraph(..)
   , empty
   , identity
   , addEdge
   , connect
+  , isConnectedTo
+  , source
+  , target
+  -- TODO: remove?
   , bfs
   ) where
 
@@ -29,6 +36,10 @@ import Data.Equivalence (Equivalence)
 import qualified Data.Equivalence as Equivalence
 
 import Data.Functor.Identity (Identity(..))
+
+-- Used to turn a type-level Source/Target into a value level one.
+import Data.Reflection
+import Data.Proxy
 
 class Signature a where
   toSize :: a -> (Int, Int)
@@ -45,6 +56,18 @@ newtype HyperEdgeId = HyperEdgeId { unHyperEdgeId :: Int }
 data Source
 data Target
 
+-- | A Reified version of the Source and Target types.
+-- We use this in Layout to determine if a Boundary is on the left or right of
+-- the diagram without having to repeat code for each type.
+data PortRole = Source | Target
+  deriving(Eq, Ord, Read, Show)
+
+instance Reifies Source PortRole where
+  reflect _ = Source
+
+instance Reifies Target PortRole where
+  reflect _ = Target
+
 -- | Ports of a hyperedge.
 -- This is parametrised by f to allow ports to specify boundary ports as well
 -- as generator ports.
@@ -54,6 +77,13 @@ deriving instance Eq   (f HyperEdgeId) => Eq (Port a f)
 deriving instance Ord  (f HyperEdgeId) => Ord (Port a f)
 deriving instance Read (f HyperEdgeId) => Read (Port a f)
 deriving instance Show (f HyperEdgeId) => Show (Port a f)
+
+-- | Convert a 'Port a f' to a Prox
+toProxy :: Port a f -> Proxy a
+toProxy _ = Proxy
+
+toPortRole :: Reifies a PortRole => Port a f -> PortRole
+toPortRole = reflect . toProxy
 
 -- | The type of Hypergraphs, parametrised by the type of generators (sig).
 -- By using different types for "f" we can make this open or closed
@@ -159,6 +189,24 @@ connect
   -> Hypergraph f sig
 -- overwrites connection if p1 or p2 was already connected!
 connect p1 p2 hg = hg { connections = Bimap.insert p1 p2 (connections hg) }
+
+-- | Is a source connected to a particular target in the hypergraph?
+isConnectedTo
+  :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
+  => Port Source f -> Port Target f -> Hypergraph f sig -> Bool
+isConnectedTo s t = maybe False (==t) . Bimap.lookup s . connections
+
+-- | What is the /source/ port that connects to this /target/, if any?
+source
+  :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
+  => Port Target f -> Hypergraph f sig -> Maybe (Port Source f)
+source t = Bimap.lookupR t . connections
+
+-- | What is the /target/ port that this /source/ connects to, if any?
+target
+  :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
+  => Port Source f -> Hypergraph f sig -> Maybe (Port Target f)
+target s = Bimap.lookup s . connections
 
 -------------------------------
 -- Operations / Traversals

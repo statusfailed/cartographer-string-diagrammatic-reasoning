@@ -40,16 +40,17 @@ viewRenderable
   :: Draw.Renderable Generator Position -> ViewOptions -> View action
 viewRenderable (Renderable tiles wires dimensions) opts@(ViewOptions tileSize) =
   Svg.svg_ svgAttrs
-    $ style
-    : gridLines unitSize (fromIntegral <$> dimensions)
-    : (fmap f tiles ++ fmap g wires)
+    [ diagramStyle
+    , gridLines (fromIntegral tileSize) (fromIntegral <$> scaledDims)
+    , Svg.g_ [] (fmap f tiles)
+    , Svg.g_ [] (fmap g wires)
+    ]
   where
     f t = uncurry renderTile t opts
     g t = uncurry renderWire t opts
-    unitSize      = fromIntegral tileSize
-    style         = Svg.style_ [Svg.type_' "text/css"] [staticCss]
 
-    V2 imgHeight imgWidth = dimensions
+    scaledDims = tileSize *^ (dimensions + V2 5 5)
+    V2 imgHeight imgWidth = scaledDims
     svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
 
 renderTile :: Tile Generator -> Position -> ViewOptions -> View action
@@ -58,11 +59,15 @@ renderTile (TileHyperEdge  g) v = viewGenerator g v
 
 renderWire :: Position -> Position -> ViewOptions -> View action
 renderWire x y (ViewOptions tileSize)
-  = drawConnector (f x) (f y) (fromIntegral tileSize)
+  = wrap $ connector (f 1 x) (f 0 y) -- dodgy af
   where
-    scale = (* V2 tileSize tileSize)
-    shift = (* V2 2 1)
-    f = scale . shift
+    scale   = (* V2 tileSize tileSize)
+    stretch = (* V2 2 1)
+    shift x = (+ V2 x 0)
+    offset  = (+ V2 0 (fromIntegral tileSize / 2))
+    f x = offset . fmap fromIntegral . scale . shift x . stretch
+
+    wrap = Svg.g_ [Svg.class_' "wire"] . pure
 
 -- | Draw a square grid spaced by unitSize pixels over the area specified by
 -- the vector.
@@ -82,8 +87,15 @@ gridLines unitSize (V2 width height) =
     displayOpts = [ Svg.stroke_ "#eeeeee", Svg.strokeDasharray_ "5,5" ]
 
 {-# WARNING viewPseudoNode "incomplete implementation" #-}
+-- | View a pseudonode
+-- TODO: make these movable! Will require use of the 'PseudoNode' ID.
 viewPseudoNode :: Layout.PseudoNode -> V2 Int -> ViewOptions -> View action
-viewPseudoNode _ pos (ViewOptions tileSize) = Svg.g_ [] []
+viewPseudoNode _ pos (ViewOptions tileSize) = connector start end
+  where
+    unitSize = fromIntegral tileSize
+    realPos = V2 2.0 1.0 * fmap fromIntegral pos :: V2 Double
+    start   = realPos + V2 0.0 (unitSize / 2.0)
+    end     = start + V2 1.0 0.0
 
 -- View a Position-annotated generator
 -- Generic drawing:
@@ -92,7 +104,7 @@ viewPseudoNode _ pos (ViewOptions tileSize) = Svg.g_ [] []
 --    * Symmetric bezier wires to circle from each port
 viewGenerator
   :: Generator
-  -> V2 Int
+  -> Position
   -> ViewOptions
   -> View action
 viewGenerator g@(Generator size ports color name) pos' (ViewOptions tileSize) =
@@ -142,6 +154,9 @@ viewGeneratorWire x cx unitSize port = connector cx (x + V2 px py)
 
 -------------------------------
 -- Constants
+
+diagramStyle :: View action
+diagramStyle = Svg.style_ [Svg.type_' "text/css"] [staticCss]
 
 -- TODO
 staticCss :: IsString s => s
