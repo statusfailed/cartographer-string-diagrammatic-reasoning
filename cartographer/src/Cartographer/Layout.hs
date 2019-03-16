@@ -75,7 +75,7 @@ empty = Layout
 -- | Width/Height of the Layout in tiles
 -- TODO: account for number of boundary nodes
 dimensions :: Layout sig -> V2 Int
-dimensions = V2 2 0 + Grid.dimensions . grid
+dimensions = (V2 2 0 +) . Grid.dimensions . grid
 
 -- | Insert a generator into a specific layer, at a particular offset.
 -- If it would overlap with another generator, the generators are shifted down.
