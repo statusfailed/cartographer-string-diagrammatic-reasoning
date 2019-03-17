@@ -191,20 +191,13 @@ connectionPseudoNodes source target layout = maybe [] id $ do
   return $ fmap (PseudoNode source target) [0..n-1]
 
 -- | Number of layers separating two ports.
--- Returns Nothing if ports
+-- Returns Nothing if ports are invalid.
 layersBetween :: Port Source Open -> Port Target Open -> Layout sig -> Maybe Int
 layersBetween s t l
-  = liftM2 (\t s -> t - s - 1) (target t) (source s)
+  = getX <$> liftM2 f (generatorPosition t l) (generatorPosition s l)
   where
-    target = g (width + 1)
-    source = g (-1)
-
-    g bpos (Port Boundary _) = Just bpos
-    g _ (Port (Gen e) _) =
-      fmap getX . Map.lookup (TileHyperEdge e) . Grid.positions . grid $ l
-
-    width = getX (dimensions l)
     getX (V2 x _) = x
+    f t s = t - s - 1 -- "between" means layers not occupied by either tile.
 
 --------------------------------------------------------------
 -- Utilities

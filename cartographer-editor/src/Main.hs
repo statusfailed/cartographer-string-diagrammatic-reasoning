@@ -47,10 +47,10 @@ operations = pseudotest
 pseudotest :: [Layout Generator -> Layout Generator]
 pseudotest =
   [ snd . Layout.placeGenerator unit   1 0 0
-  -- TODO: this is broken :(
-  -- , snd . Layout.placeGenerator copy   3 1 0 -- gets in way of pseudo!
   , snd . Layout.placeGenerator counit 1 2 1
+  , snd . Layout.placeGenerator copy   3 1 0 -- gets in way of pseudo!
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 0)
+  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port Boundary 2)
   ]
 
 bigtest :: [Layout Generator -> Layout Generator]
