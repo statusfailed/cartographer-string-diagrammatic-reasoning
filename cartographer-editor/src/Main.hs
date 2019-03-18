@@ -53,6 +53,18 @@ pseudotest =
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port Boundary 2)
   ]
 
+-- NOTE: the final command will crash the Layout.
+-- This is because it causes missing pseudonodes- when the grid gets wider,
+-- pseudos must be inserted.
+pseudotest2 :: [Layout Generator -> Layout Generator]
+pseudotest2 =
+  [ snd . Layout.placeGenerator unit   1 0 0
+  , snd . Layout.placeGenerator copy   3 1 0 -- gets in way of pseudo!
+  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 1)
+  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port Boundary 2)
+  , snd . Layout.placeGenerator counit 1 2 1
+  ]
+
 bigtest :: [Layout Generator -> Layout Generator]
 bigtest =
   [ snd . Layout.placeGenerator counit  1 1 4

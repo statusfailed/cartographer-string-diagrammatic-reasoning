@@ -29,8 +29,6 @@ import qualified Data.Equivalence as Equivalence
 import Drawing
 import Types
 
-import Debug.Trace (traceShow)
-
 data ViewOptions = ViewOptions
   { tileSize :: Int
   } deriving(Eq, Ord, Read, Show)
@@ -90,14 +88,13 @@ gridLines unitSize (V2 width height) =
 
     displayOpts = [ Svg.stroke_ "#eeeeee", Svg.strokeDasharray_ "5,5" ]
 
-{-# WARNING viewPseudoNode "incomplete implementation" #-}
 -- | View a pseudonode
 -- TODO: make these movable! Will require use of the 'PseudoNode' ID.
 viewPseudoNode :: Layout.PseudoNode -> V2 Int -> ViewOptions -> View action
 viewPseudoNode _ pos (ViewOptions tileSize) = connectorWith "red" start end
   where
     unitSize = fromIntegral tileSize
-    realPos = unitSize *^ V2 2 1 * fmap fromIntegral (traceShow pos pos)
+    realPos = unitSize *^ V2 2 1 * fmap fromIntegral pos
     start   = realPos + V2 0.0 (unitSize / 2.0) :: V2 Double
     end     = start + V2 unitSize 0.0
 
