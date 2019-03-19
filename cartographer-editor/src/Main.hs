@@ -50,7 +50,11 @@ pseudotest =
   , snd . Layout.placeGenerator counit 1 2 1
   , snd . Layout.placeGenerator copy   3 1 0 -- gets in way of pseudo!
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 0)
+  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 2) 1)
+  , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port Boundary 2)
+  , Layout.connectPorts (Hypergraph.Port Boundary 0) (Hypergraph.Port (Gen 2) 1)
+  , Layout.connectPorts (Hypergraph.Port (Gen 2) 2) (Hypergraph.Port Boundary 0)
   ]
 
 -- NOTE: the final command will crash the Layout.
