@@ -49,8 +49,8 @@ viewRenderable (Renderable tiles wires dimensions) opts@(ViewOptions tileSize) =
     f t = uncurry viewTile t opts
     g t = uncurry viewWire t opts
 
-    -- TODO: remove random +5 to y dimension (fix Layout.dimensions!)
-    scaledDims = fmap fromIntegral (tileSize *^ V2 2 1 * (V2 0 5 + dimensions))
+  -- NOTE: the (- V2 1 0) removes the final unnecessary "wires" column from the grid.
+    scaledDims = fmap fromIntegral (tileSize *^ (V2 2 1 * dimensions - V2 1 0))
     V2 imgWidth imgHeight = scaledDims
     svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
 

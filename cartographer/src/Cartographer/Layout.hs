@@ -61,6 +61,7 @@ data Layout sig = Layout
   , nextHyperEdgeId :: HyperEdgeId
   -- ^ Next free ID to add a HyperEdge.
   -- TODO: put this in Hypergraph?
+  -- TODO: explicitly keep track of assigned boundary ports?
   } deriving(Eq, Ord, Show)
 
 -- | The empty layout state. An empty hypergraph, nothing positioned, and no
@@ -79,7 +80,8 @@ dimensions = (V2 2 0 +) . Grid.dimensions . grid
 
 -- | Insert a generator into a specific layer, at a particular offset.
 -- If it would overlap with another generator, the generators are shifted down.
--- TODO: rename placeGenerator to something more consistent?
+--
+-- TODO: rename placeGenerator to something more consistent with other modules?
 placeGenerator
   :: Hypergraph.Signature sig
   => sig
@@ -129,6 +131,8 @@ connectPorts
 connectPorts s t layout = layout'
   { hypergraph = Hypergraph.connect s t (hypergraph layout') }
   where
+    -- cleanS and cleanT remove any existing pseudonodes that are no longer
+    -- needed. TODO: move this into another function? :-)
     cleanS l =
       if Hypergraph.target s (hypergraph l) /= Just t
         then disconnectSource s l
@@ -173,7 +177,7 @@ disconnectTarget t l = case Hypergraph.source t (hypergraph l) of
 -------------------------------
 -- Pseudnodes
 
--- | Add a pseudonodes into the grid.
+-- | Add a pseudonode into the grid.
 addPseudoNode :: PseudoNode -> Position -> Layout sig -> Layout sig
 addPseudoNode pseudo v layout = layout
   { grid = Grid.placeTile (TilePseudoNode pseudo) 1 v (grid layout) }
@@ -182,6 +186,33 @@ addPseudoNode pseudo v layout = layout
 removePseudoNode :: PseudoNode -> Layout sig -> Layout sig
 removePseudoNode pseudo layout = layout
   { grid = Grid.removeTile (TilePseudoNode pseudo) (grid layout) }
+
+--------------------------------------------------------------
+-- Utilities / Read-Only functions
+
+-- | A thin wrapper around Grid.positions
+-- TODO: replace this interface to return a Map (Tile (Port () Open)) Position ?
+-- Then automatically insert Boundary "generators" and shift all non-boundaries
+-- right by 1.
+-- Computing the Map (Tile HyperEdgeId) Position would just be a simple
+-- filter + fmap on this map...
+positions :: Layout sig -> Map (Tile HyperEdgeId) Position
+positions = Grid.positions . grid
+
+-- | Get the position of a port's generator.
+-- NOTE: this takes into account the boundaries, so a Source Boundary
+generatorPosition
+  :: Reifies a PortRole
+  => Port a Open
+  -> Layout sig
+  -> Maybe Position
+generatorPosition p l = case p of
+  Port Boundary i -> return (V2 bx i) -- bx depends on port role
+  Port (Gen e) i  -> fmap (+ V2 1 i) . Grid.positionOf (TileHyperEdge e) $ g
+  where
+    g       = grid l
+    V2 w h  = Grid.dimensions g
+    bx      = if Hypergraph.toPortRole p == Source then 0 else w + 1
 
 -- | Compute which pseudonodes must exist for a given connection
 connectionPseudoNodes
@@ -199,29 +230,6 @@ layersBetween s t l
     getX (V2 x _) = x
     f t s = t - s - 1 -- "between" means layers not occupied by either tile.
 
---------------------------------------------------------------
--- Utilities
-
--- | A thin wrapper around Grid.positions
--- TODO: replace this interface to return a Map (Tile (Port () Open)) Position ?
--- Then automatically insert Boundary "generators" and shift all non-boundaries
--- right by 1.
--- Computing the Map (Tile HyperEdgeId) Position would just be a simple
--- filter + fmap on this map...
-positions :: Layout sig -> Map (Tile HyperEdgeId) Position
-positions = Grid.positions . grid
-
--- | Get the position of a port's generator.
-generatorPosition
-  :: Reifies a PortRole
-  => Port a Open -> Layout sig -> Maybe Position
-generatorPosition p l = case p of
-  Port Boundary i -> return (V2 bx i) -- bx depends on port role
-  Port (Gen e) i  -> fmap (+ V2 1 i) . Grid.positionOf (TileHyperEdge e) $ g
-  where
-    g       = grid l
-    V2 w h  = Grid.dimensions g
-    bx      = if Hypergraph.toPortRole p == Source then 0 else w + 2
 
 -------------------------------
 -- TODO

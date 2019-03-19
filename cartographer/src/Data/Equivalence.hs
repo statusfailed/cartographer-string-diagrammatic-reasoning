@@ -20,6 +20,10 @@ data Equivalence a c = Equivalence
 empty :: Equivalence a c
 empty = Equivalence Map.empty Map.empty
 
+-- | Is an 'Equivalence' empty?
+null :: Equivalence a c -> Bool
+null (Equivalence cls ms) = Map.null cls && Map.null ms
+
 -- | create an 'Equivalence' from a list of equivalences 'a ~ c'.
 -- If a value 'a' appears more than once for a different 'c' (i.e., the list
 -- does not represent a function), then the final value will be taken.

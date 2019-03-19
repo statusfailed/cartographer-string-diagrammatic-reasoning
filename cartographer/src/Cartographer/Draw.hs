@@ -64,7 +64,10 @@ toTiles layout = fmap f . Map.toList . Layout.positions $ layout
         Nothing -> error $ "toTiles: missing key " ++ show e
       TilePseudoNode p -> (TilePseudoNode p, v + V2 1 0)
 
--- NOTE: this function returns a list of wires between ADJACENT tiles.
+-- NOTE: This function returns a list of wires between ADJACENT tiles.
+--       It's a solution to the problem of long wires crossing generators
+--
+-- It works like this:
 --  1) break each "long wire" into a number of "intermediate" wires
 --      * Intermediate wire has the form Tile (Port a Open) ?
 --  2) for each intermediate wire, look up its endpoints, e.g.:
@@ -88,6 +91,8 @@ allWires = Bimap.toList . Hypergraph.connections . Layout.hypergraph
 
 -------------------------------
 -- Breaking up wires
+--
+-- "breakWire" takes a pair of ports (defining a wire), and eats a pie.
 
 -- An 'IntermediateWire' is a wire between either a "real" tile, or a
 -- pseudonode.
@@ -98,6 +103,7 @@ type Endpoint a = Tile (Port a Open)
 -- endpoints, where an endpoint is either a port or a pseudonode.
 breakWire :: Wire -> Layout sig -> [IntermediateWire]
 breakWire (source, target) layout = zip sources targets where
+  -- list of pseudonodes between source and target ports.
   pseudos   = Layout.connectionPseudoNodes source target layout
   -- source and target endpoint lists
   sources = TileHyperEdge source : (TilePseudoNode <$> pseudos)

@@ -34,24 +34,24 @@ data Grid tile = Grid
   }
   deriving(Eq, Ord, Read, Show)
 
+-- | returns the dimensions of the Grid in *tiles*
+-- >>> dimensions empty == V2 0 0
+-- >>> dimensions (placeTile () 1 (V2 0 0) empty) == V2 1 1
 dimensions :: Grid tile -> V2 Int
-dimensions (Grid (Equivalence cls _)) =
-  foldl f (V2 0 0) . fmap fst $ Map.toList cls
-  where f (V2 mx my) (V2 x y) = V2 (max mx x) (max my y)
+dimensions g@(Grid (Equivalence cls _)) =
+  case Cartographer.Types.Grid.null g of
+    True  -> V2 0 0
+    False -> V2 1 1 + maxCoords
+  where
+    maxCoords = foldl f (V2 0 0) . fmap fst $ Map.toList cls
+    f (V2 mx my) (V2 x y) = V2 (max mx x) (max my y)
+
+-- | Is the grid devoid of tiles?
+null :: Grid tile -> Bool
+null (Grid eq) = Equivalence.null eq
 
 empty :: Grid tile
 empty = Grid Equivalence.empty
-
--- | Insert columns, by simply shifting all tiles in columns >= the specified
--- column up by a specified amount.
-shiftY
-  :: Ord tile
-  => Int -- ^ y coords >= this value will be shifted up by a specified amount.
-  -> Int -- ^ Amount to increment by
-  -> Grid tile
-  -> Grid tile
-shiftY i dy (Grid m) = Grid (Equivalence.mapElems f m)
-  where f v@(V2 x y) = if y < i then v else V2 x (y+dy)
 
 -- | Shift tiles in a layer above a certain offset by a specified amount.
 --
@@ -72,7 +72,7 @@ shiftOffset (V2 x y) dy (Grid eq) = Grid (Equivalence.mapElems f eq)
 -- | Place a tile at a particular position.
 -- If this causes overlap, other tiles in the same layer (y-coordinate) will be
 -- shifted to make space.
---  1) Check all positions
+-- TODO: behaviour if Height < 1 means *nothing* added. Is that right?
 placeTile :: Ord tile => tile -> Height -> Position -> Grid tile -> Grid tile
 placeTile tile h v grid@(Grid eq) =
   case filter (isJust . snd) contents of
