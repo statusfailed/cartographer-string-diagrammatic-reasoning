@@ -42,7 +42,7 @@ data Model = Model
   , numOps :: Int
   } deriving(Eq, Ord, Show)
 
-operations = pseudotest
+operations = pseudotest2
 
 pseudotest :: [Layout Generator -> Layout Generator]
 pseudotest =

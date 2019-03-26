@@ -34,6 +34,9 @@ data MatchEnv sig = MatchEnv
 -- | A matching consists of two 1:1 correspondences:
 --    1) Between ports in the pattern and the graph
 --    2) Between hyperedge IDs in the pattern and in the graph
+--
+-- NOTE: maybe instead of a mapping for source + target ports, have a
+-- correspondence between wires?
 data MatchState sig = MatchState
   { _matchStatePortsSource :: Bimap (Port Source Open) (Port Source Open)
   , _matchStatePortsTarget :: Bimap (Port Target Open) (Port Target Open)
@@ -130,6 +133,8 @@ matchPort (Port Boundary pi) _ = return ()
 
 -- A Generator node in the pattern can never match a Boundary in the graph-
 -- the signatures clearly don't match!
+-- NOTE: here, the first port will *ALWAYS* be a generator, because of the
+-- first case in the pattern match above!
 matchPort _ (Port Boundary qi) = guard False
 
 -- If both parts of the proposed match are Generators, then try to match the
@@ -239,7 +244,8 @@ matchStep ps = do
   matchWire (ps, pt) (qs, qt)
 
 {-# WARNING toTarget "partial function" #-}
--- | TODO: REMOVE PARTIAL FUNCTION
+-- | Find the corresponding Target port for a given Source port.
+-- TODO: REMOVE PARTIAL FUNCTION
 -- Idea: replace with "fail all matches", or allow disconnected generators to
 -- match?
 toTarget :: Port Source Open -> OpenHypergraph sig -> Port Target Open

@@ -10,6 +10,9 @@ module Cartographer.Layout where
 import Data.Map.Strict (Map, (!), (!?))
 import qualified Data.Map.Strict as Map
 
+import Data.Bimap (Bimap)
+import qualified Data.Bimap as Bimap
+
 import Linear.V2
 import Data.Maybe (catMaybes)
 import Control.Monad (liftM2)
@@ -79,9 +82,12 @@ dimensions :: Layout sig -> V2 Int
 dimensions = (V2 2 0 +) . Grid.dimensions . grid
 
 -- | Insert a generator into a specific layer, at a particular offset.
--- If it would overlap with another generator, the generators are shifted down.
+-- If it would overlap with another generator, the generators are shifted down
+-- to make space.
 --
--- TODO: rename placeGenerator to something more consistent with other modules?
+-- If the generator would increase the size of the grid in the X direction,
+-- insert new pseudonodes for every wire.
+-- TODO: this is ridiculously inefficient; we can simply add new pseudonodes as
 placeGenerator
   :: Hypergraph.Signature sig
   => sig
@@ -94,7 +100,7 @@ placeGenerator
   -- ^ At what offset?
   -> Layout sig
   -> (HyperEdgeId, Layout sig)
-placeGenerator sig height layer offset l = (nextId, l') where
+placeGenerator sig height layer offset l = (nextId, recomputePseudoNodes l') where
   dims = Hypergraph.toSize sig
   edgeId = nextHyperEdgeId l
   nextId = succ edgeId
@@ -110,6 +116,15 @@ placeGenerator sig height layer offset l = (nextId, l') where
     , nextHyperEdgeId = nextId
     -- Assign new HyperEdgeId and return it
     }
+
+-- | Recompute 'PseudoNode's for the entire Layout.
+-- NOTE: this works by reconnecting every pair of connected ports in the graph,
+--       which ensures that all pseudonodes exist.
+-- TODO FIXME: this is super slow and hacky! Be a bit more intelligent about
+--             which connections to reconnect!
+recomputePseudoNodes :: Layout sig -> Layout sig
+recomputePseudoNodes l = foldr (uncurry connectPorts) l wires
+  where wires = (Bimap.toList . Hypergraph.connections . hypergraph $ l)
 
 -- | connect two hypergraph ports in the layout.
 --
@@ -240,6 +255,8 @@ insertLayer i l = undefined
   -- Shift everything >= i up one layer
   -- Recompute pseudonodes for all connections:
 
+-- | This isn't really necessary- we can handle it in the frontend View, and
+-- just take the largest connected boundary node as the boundary size?
 addBoundaryNode :: Either Int Int -> Layout sig -> Layout sig
 addBoundaryNode = undefined
   -- Hypergraph.addBoundaryNode
