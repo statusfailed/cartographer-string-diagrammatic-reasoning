@@ -12,6 +12,8 @@ import qualified Cartographer.Layout as Layout
 import Data.Hypergraph (Hypergraph, Open(..))
 import qualified Data.Hypergraph as Hypergraph
 
+import Linear.V2 (V2(..))
+
 import View (view, ViewOptions(..))
 import Types
 
@@ -46,9 +48,9 @@ operations = pseudotest2
 
 pseudotest :: [Layout Generator -> Layout Generator]
 pseudotest =
-  [ snd . Layout.placeGenerator unit   1 0 0
-  , snd . Layout.placeGenerator counit 1 2 1
-  , snd . Layout.placeGenerator copy   3 1 0 -- gets in way of pseudo!
+  [ snd . Layout.placeGenerator unit   1 (V2 0 0)
+  , snd . Layout.placeGenerator counit 1 (V2 2 1)
+  , snd . Layout.placeGenerator copy   3 (V2 1 0) -- gets in way of pseudo!
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 2) 1)
   , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
@@ -62,19 +64,19 @@ pseudotest =
 -- pseudos must be inserted.
 pseudotest2 :: [Layout Generator -> Layout Generator]
 pseudotest2 =
-  [ snd . Layout.placeGenerator unit   1 0 0
-  , snd . Layout.placeGenerator copy   3 1 0 -- gets in way of pseudo!
-  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 1)
+  [ snd . Layout.placeGenerator unit   1 (V2 0 0)
+  , snd . Layout.placeGenerator copy   3 (V2 1 0) -- gets in way of pseudo!
+  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port Boundary 2)
-  , snd . Layout.placeGenerator counit 1 2 1
+  , snd . Layout.placeGenerator counit 1 (V2 2 1)
   ]
 
 bigtest :: [Layout Generator -> Layout Generator]
 bigtest =
-  [ snd . Layout.placeGenerator counit  1 1 4
-  , snd . Layout.placeGenerator py      3 1 0
-  , snd . Layout.placeGenerator copy    3 0 2
-  , snd . Layout.placeGenerator unit    1 0 0
+  [ snd . Layout.placeGenerator counit  1 (V2 1 4)
+  , snd . Layout.placeGenerator py      3 (V2 1 0)
+  , snd . Layout.placeGenerator copy    3 (V2 0 2)
+  , snd . Layout.placeGenerator unit    1 (V2 0 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 0) 0)
   -- Wires to boundaries

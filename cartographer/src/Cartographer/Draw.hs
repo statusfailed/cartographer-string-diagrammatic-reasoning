@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor    #-}
+{-# LANGUAGE FlexibleContexts #-}
 -- | "Abstract" drawing of a 'Layout'.
 -- this module gives enough functionality to make drawing a layout trivial.
 -- Using it, you can get:
@@ -8,7 +9,7 @@
 module Cartographer.Draw where
 
 import Data.Hypergraph
-  (Hypergraph, HyperEdgeId, Port(..), Open(..), Source, Target)
+  (Hypergraph, HyperEdgeId, Port(..), PortRole(..), Open(..), Source, Target)
 import qualified Data.Hypergraph as Hypergraph
 
 import Cartographer.Layout (Layout, Tile(..))
@@ -22,6 +23,8 @@ import qualified Data.Map.Strict as Map
 
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
+
+import Data.Reflection
 
 import Linear.Vector ((*^))
 import Linear.V2 (V2(..))
@@ -48,7 +51,7 @@ data Renderable sig v = Renderable
 toGridCoordinates :: Layout sig -> Renderable sig Position
 toGridCoordinates l = Renderable
   { tiles = toTiles l
-  , wires = toWires l
+  , wires = toWires (\_ v i -> v + V2 0 i) l
   , dimensions = Layout.dimensions l
   }
 
@@ -73,11 +76,16 @@ toTiles layout = fmap f . Map.toList . Layout.positions $ layout
 --  2) for each intermediate wire, look up its endpoints, e.g.:
 --      * TileHyperEdge (Port Boundary i)  ---> TilePseudoNode pn
 --      * (V2 0 i) ---> Grid.position pn
-toWires :: Layout sig -> [(Position, Position)]
-toWires layout = flip wirePosition m <$> (breakWire' =<< allWires layout)
+toWires
+  :: (sig -> V2 Int -> Int -> V2 Int)
+  -- ^ Find the location of a port, given the generator location, port role,
+  -- and port index.
+  -> Layout sig
+  -> [(Position, Position)]
+toWires portPosition layout =
+  flip wirePosition layout <$> (breakWire' =<< allWires layout)
   where
     breakWire' = flip breakWire layout
-    m  = Layout.positions layout
 
 -------------------------------
 -- toWires: helper functions
@@ -91,12 +99,13 @@ allWires = Bimap.toList . Hypergraph.connections . Layout.hypergraph
 
 -------------------------------
 -- Breaking up wires
---
--- "breakWire" takes a pair of ports (defining a wire), and eats a pie.
 
 -- An 'IntermediateWire' is a wire between either a "real" tile, or a
 -- pseudonode.
 type IntermediateWire = (Endpoint Source, Endpoint Target)
+
+-- An endpoint is either a pseudonode port (in which case it's 1x1), or
+-- a hyperedge port.
 type Endpoint a = Tile (Port a Open)
 
 -- Break a long wire into intermediates. An intermediate goes between two
@@ -112,37 +121,23 @@ breakWire (source, target) layout = zip sources targets where
 {-# WARNING wirePosition "partial function" #-}
 wirePosition
   :: IntermediateWire
-  -> Map (Tile HyperEdgeId) Position
+  -> Layout sig
   -- ^ TODO: FIXME: cache information like this map and diagram width and use
   -- reader monad to tidy up!
   -> (Position, Position)
-wirePosition (s, t) m = (ps, pt) where
-  ps = endpointPosition s 0 m
-  pt = endpointPosition t w m
-  -- TODO: FIXME: remove partial function
-  w  = (+2) . getX . maximum . fmap snd . Map.toList $ m
-  getX (V2 x _) = x
+wirePosition (s, t) layout = (ps, pt) where
+  ps = endpointPosition s layout
+  pt = endpointPosition t layout
 
 {-# WARNING endpointPosition "partial function" #-}
 -- | Get the tile position of an 'Endpoint'
 endpointPosition
-  :: Endpoint a -> Int -> Map (Tile HyperEdgeId) Position -> Position
-endpointPosition e bx m = case e of
-  TileHyperEdge p   -> portPosition p bx m
-  TilePseudoNode pn -> case Map.lookup (TilePseudoNode pn) m of
+  :: Reifies a PortRole
+  => Endpoint a -> Layout sig -> Position
+endpointPosition e layout = case e of
+  TileHyperEdge p   -> case Layout.portPosition (\_ _ i -> V2 0 0) p layout of
+    Just  v -> v
+    Nothing -> error $ "endpointPosition: missing hyperedge posn or sig"
+  TilePseudoNode pn -> case Layout.positionOf (TilePseudoNode pn) layout of
     Just r -> r + V2 1 0
     Nothing -> error $ "endpointPosition: missing key " ++ show pn
-
--- | Find the (tile) Position of a given 'Port'
--- TODO: WARNING: this (obviously) depends on how generators are positioned!
--- TODO: FIXME: this scatters the "transform" logic everywhere, not nice!
-portPosition
-  :: Port a Open
-  -> Int -- ^ Boundary x coordinate
-  -> Map (Tile HyperEdgeId) Position
-  -> Position
-portPosition p bx m = case p of
-  Port Boundary i -> V2 bx i
-  Port (Gen e)  i -> case Map.lookup (TileHyperEdge e) m of
-    Just r  -> r + V2 1 i
-    Nothing -> error $ "portPosition: missing key " ++ show e

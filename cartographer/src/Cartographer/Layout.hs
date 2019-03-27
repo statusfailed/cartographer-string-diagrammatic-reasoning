@@ -34,9 +34,6 @@ import Data.Reflection
 newtype Layer = Layer { unLayer :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
 
-newtype Offset = Offset { unOffset :: Int }
-  deriving(Eq, Ord, Read, Show, Enum, Num)
-
 -- | A pseudonode is uniquely identified by the two ports it helps connect,
 -- and its offset from the source node.
 -- Its x-position is exactly the source port's x position plus the offset.
@@ -49,9 +46,6 @@ data Tile a
   = TileHyperEdge a
   | TilePseudoNode PseudoNode
   deriving(Eq, Ord, Read, Show)
-
-fromLayerOffset :: Layer -> Offset -> V2 Int
-fromLayerOffset (Layer i) (Offset j) = V2 i j
 
 -- | a 'Hypergraph' plus the additional information needed to display it laid
 -- out in 2D.
@@ -94,13 +88,11 @@ placeGenerator
   -- ^ What kind of generator?
   -> Grid.Height
   -- ^ How many grid-squares tall is it? (TODO: work this out?)
-  -> Layer
-  -- ^ What layer to put it in?
-  -> Offset
-  -- ^ At what offset?
+  -> Position
+  -- ^ Where to put it in the grid?
   -> Layout sig
   -> (HyperEdgeId, Layout sig)
-placeGenerator sig height layer offset l = (nextId, recomputePseudoNodes l') where
+placeGenerator sig height pos l = (nextId, recomputePseudoNodes l') where
   dims = Hypergraph.toSize sig
   edgeId = nextHyperEdgeId l
   nextId = succ edgeId
@@ -109,8 +101,7 @@ placeGenerator sig height layer offset l = (nextId, recomputePseudoNodes l') whe
     -- Add new edgeId to hypergraph
 
     , grid =
-        Grid.placeTile (TileHyperEdge edgeId) height
-          (fromLayerOffset layer offset) (grid l)
+        Grid.placeTile (TileHyperEdge edgeId) height pos (grid l)
     -- Finally, placeTile in Grid to update positions.
 
     , nextHyperEdgeId = nextId
@@ -214,8 +205,13 @@ removePseudoNode pseudo layout = layout
 positions :: Layout sig -> Map (Tile HyperEdgeId) Position
 positions = Grid.positions . grid
 
+positionOf :: Tile HyperEdgeId -> Layout sig -> Maybe Position
+positionOf tile layout = Grid.positionOf tile (grid layout)
+
 -- | Get the position of a port's generator.
 -- NOTE: this takes into account the boundaries, so a Source Boundary
+-- TODO: FIXME: this actually computes "port offset" using a dumb method of
+-- just adding the port index to the y-coordinate. That's not right!
 generatorPosition
   :: Reifies a PortRole
   => Port a Open
@@ -228,6 +224,31 @@ generatorPosition p l = case p of
     g       = grid l
     V2 w h  = Grid.dimensions g
     bx      = if Hypergraph.toPortRole p == Source then 0 else w + 1
+
+-- | Position of the boundary filling the same role as this port.  i.e., if "a"
+-- is Target, it's the right boundary, and Source -> left.
+boundaryPosition :: PortRole -> Int -> Layout sig -> Position
+boundaryPosition role i l = V2 bx i
+  where
+    V2 w h  = Grid.dimensions (grid l)
+    bx = if role == Source then 0 else w + 1
+
+-- | Calculate the integer-grid coordinates of a *port*, rather than its
+-- generator.
+portPosition
+  :: Reifies a PortRole
+  => (sig -> PortRole -> Int -> V2 Int)
+  -- ^ Compute the offset of a port given its generator, role, and index.
+  -> Port a Open
+  -> Layout sig
+  -> Maybe Position
+portPosition _ p@(Port Boundary i) l = return (boundaryPosition role i l)
+  where role = Hypergraph.toPortRole p
+portPosition portOffset p@(Port (Gen e) i) l = do
+  pos <- generatorPosition p l
+  sig <- Map.lookup e (Hypergraph.signatures . hypergraph $ l)
+  return $ pos + portOffset sig role i
+  where role = Hypergraph.toPortRole p
 
 -- | Compute which pseudonodes must exist for a given connection
 connectionPseudoNodes
