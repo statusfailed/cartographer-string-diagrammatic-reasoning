@@ -14,8 +14,12 @@ import qualified Data.Hypergraph as Hypergraph
 
 import Linear.V2 (V2(..))
 
-import View (view, ViewOptions(..))
-import Types
+{-import View (view, ViewOptions(..))-}
+{-import Types-}
+
+import Cartographer.Viewer (ViewerOptions(..))
+import qualified Cartographer.Viewer as Viewer
+import Cartographer.Viewer.Types (Generator(..))
 
 -------------------------------
 -- Test generators
@@ -142,6 +146,6 @@ viewModel :: Model -> View Action
 viewModel m@(Model layout numOps) = div_ []
   [ button_ [ onClick (AddNumOps (-1)) ] [ "<<" ]
   , button_ [ onClick (AddNumOps 1   ) ] [ ">>" ]
-  , div_ [] [ View.view layout (ViewOptions 50) ]
+  , div_ [] [ const NoOp <$> Viewer.view layout (ViewerOptions 50) ]
   , div_ [] [ text (ms $ show m) ]
   ]

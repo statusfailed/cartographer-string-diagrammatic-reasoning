@@ -2,7 +2,21 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module View where
+-- | This module defines how cartographer hypergraphs are rendered to SVG.
+-- Here is a brief overview of the rendering approach.
+--
+-- The Cartographer.Layout keeps geometry information in "abstract"
+-- coordinates- an integer grid, with no space for wires.
+-- 
+-- Cartographer.Draw is a simpler interface to Layout- namely, the Renderable
+-- type can be used to draw all elements of the diagram individually.
+--
+-- This module makes two more transforms to get to the final screen
+-- coordinates:
+--  1) "make space" for wires, by interspersing an empty column between all
+--      generator columns.
+--  2) Scale up to pixel coordinates
+module Cartographer.Viewer.View where
 
 import Miso (View(..))
 import qualified Miso as Miso
@@ -26,41 +40,43 @@ import qualified Cartographer.Draw as Draw
 import Data.Equivalence (Equivalence)
 import qualified Data.Equivalence as Equivalence
 
-import Drawing
-import Types
+import Cartographer.Viewer.Drawing
+import Cartographer.Viewer.Types
 
-data ViewOptions = ViewOptions
+data ViewerOptions = ViewerOptions
   { tileSize :: Int
   } deriving(Eq, Ord, Read, Show)
 
-view :: Layout Generator -> ViewOptions -> View action
+view :: Layout Generator -> ViewerOptions -> View RawAction
 view layout opts = flip viewRenderable opts . Draw.toGridCoordinates $ layout
 
 viewRenderable
-  :: Draw.Renderable Generator Position -> ViewOptions -> View action
-viewRenderable (Renderable tiles wires dimensions) opts@(ViewOptions tileSize) =
-  Svg.svg_ svgAttrs
+  :: Draw.Renderable Generator Position -> ViewerOptions -> View RawAction
+viewRenderable (Renderable tiles wires dimensions) opts =
+  Svg.svg_ (Svg.onClick (RawClickedTile $ V2 0 0) : svgAttrs)
     [ diagramStyle
     , gridLines (fromIntegral tileSize) scaledDims
     , Svg.g_ [] (fmap f tiles)
     , Svg.g_ [] (fmap g wires)
     ]
   where
+    ViewerOptions tileSize = opts
     f t = uncurry viewTile t opts
     g t = uncurry viewWire t opts
 
-  -- NOTE: the (- V2 1 0) removes the final unnecessary "wires" column from the grid.
+  -- NOTE: the (- V2 1 0) removes the final unnecessary "wires" column from the
+  -- grid.
     scaledDims = fmap fromIntegral (tileSize *^ (V2 2 1 * dimensions - V2 1 0))
     V2 imgWidth imgHeight = scaledDims
     svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
 
-viewTile :: Tile Generator -> Position -> ViewOptions -> View action
+viewTile :: Tile Generator -> Position -> ViewerOptions -> View action
 viewTile (TilePseudoNode p) v = viewPseudoNode p v
 viewTile (TileHyperEdge  g) v = viewGenerator g v
 
 -- | Render a wire in pixel coordinates between two integer grid positions
-viewWire :: Position -> Position -> ViewOptions -> View action
-viewWire x y (ViewOptions tileSize)
+viewWire :: Position -> Position -> ViewerOptions -> View action
+viewWire x y (ViewerOptions tileSize)
   = wrap $ connector (f 1 x) (f 0 y) -- dodgy af
   where
     scale   = (* V2 tileSize tileSize)
@@ -90,8 +106,8 @@ gridLines unitSize (V2 width height) =
 
 -- | View a pseudonode
 -- TODO: make these movable! Will require use of the 'PseudoNode' ID.
-viewPseudoNode :: Layout.PseudoNode -> V2 Int -> ViewOptions -> View action
-viewPseudoNode _ pos (ViewOptions tileSize) = connectorWith "red" start end
+viewPseudoNode :: Layout.PseudoNode -> V2 Int -> ViewerOptions -> View action
+viewPseudoNode _ pos (ViewerOptions tileSize) = connectorWith "red" start end
   where
     unitSize = fromIntegral tileSize
     realPos = unitSize *^ V2 2 1 * fmap fromIntegral pos
@@ -106,9 +122,10 @@ viewPseudoNode _ pos (ViewOptions tileSize) = connectorWith "red" start end
 viewGenerator
   :: Generator
   -> Position
-  -> ViewOptions
+  -> ViewerOptions
   -> View action
-viewGenerator g@(Generator size ports color name) pos' (ViewOptions tileSize) =
+viewGenerator g@(Generator size ports color name) pos' (ViewerOptions tileSize)
+  = 
   let pos = pos' * (V2 2 1)
       unitSize = fromIntegral tileSize
       height = unitSize * fromIntegral (tileHeight g) :: Double
