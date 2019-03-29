@@ -6,6 +6,11 @@ import qualified Cartographer.Layout as Layout
 import Cartographer.Types.Grid (Position)
 import Linear.V2 (V2(..))
 
+-- | Options to draw the Viewer
+data ViewerOptions = ViewerOptions
+  { tileSize :: Int
+  } deriving(Eq, Ord, Read, Show)
+
 -- | The viewer works with a concrete Generator type, which describes how
 -- it can be drawn
 data Generator = Generator

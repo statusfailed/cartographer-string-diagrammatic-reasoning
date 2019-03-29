@@ -43,30 +43,33 @@ import qualified Data.Equivalence as Equivalence
 import Cartographer.Viewer.Drawing
 import Cartographer.Viewer.Types
 
-data ViewerOptions = ViewerOptions
-  { tileSize :: Int
-  } deriving(Eq, Ord, Read, Show)
-
 view :: Layout Generator -> ViewerOptions -> View RawAction
 view layout opts = flip viewRenderable opts . Draw.toGridCoordinates $ layout
 
 viewRenderable
   :: Draw.Renderable Generator Position -> ViewerOptions -> View RawAction
 viewRenderable (Renderable tiles wires dimensions) opts =
-  Svg.svg_ (Svg.onClick (RawClickedTile $ V2 0 0) : svgAttrs)
+  -- NOTE: order here is very important for clickability!
+  -- If anything is above clickableGridSquares, then not all squares are
+  -- clickable!
+  Svg.svg_ svgAttrs
     [ diagramStyle
-    , gridLines (fromIntegral tileSize) scaledDims
-    , Svg.g_ [] (fmap f tiles)
+    , gridLines unitSize scaledDims
     , Svg.g_ [] (fmap g wires)
+    , Svg.g_ [] (fmap f tiles)
+    , clickableGridSquares spacedDims unitSize
     ]
   where
+    unitSize = fromIntegral tileSize
     ViewerOptions tileSize = opts
     f t = uncurry viewTile t opts
     g t = uncurry viewWire t opts
 
+  -- intersperse a "wires" col between every generator
   -- NOTE: the (- V2 1 0) removes the final unnecessary "wires" column from the
   -- grid.
-    scaledDims = fmap fromIntegral (tileSize *^ (V2 2 1 * dimensions - V2 1 0))
+    spacedDims = V2 2 1 * dimensions - V2 1 0
+    scaledDims = fmap fromIntegral (tileSize *^ spacedDims)
     V2 imgWidth imgHeight = scaledDims
     svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
 
@@ -103,6 +106,24 @@ gridLines unitSize (V2 width height) =
                          , Svg.x1_ (ms x), Svg.x2_ (ms x) ] ++ displayOpts) []
 
     displayOpts = [ Svg.stroke_ "#eeeeee", Svg.strokeDasharray_ "5,5" ]
+
+-- | Draw an invisible SVG rect, one for each grid square, so we can assign a
+-- custom 'onClick' to each, and react when user clicks one.
+clickableGridSquares :: V2 Int -> Double -> View RawAction
+clickableGridSquares size@(V2 w h) unitSize =
+  Svg.g_ []
+    [ Svg.rect_
+      [ Svg.width_ (ms unitSize), Svg.height_ (ms unitSize)
+      , Svg.x_ (ms $ fromIntegral x * unitSize)
+      , Svg.y_ (ms $ fromIntegral y * unitSize)
+      , Svg.stroke_ "transparent"
+      , Svg.strokeWidth_ "2"
+      , Svg.fill_ "transparent"
+      , Svg.onClick (RawClickedTile $ V2 x y)
+      ] []
+    | x <- [0..w]
+    , y <- [0..h]
+    ]
 
 -- | View a pseudonode
 -- TODO: make these movable! Will require use of the 'PseudoNode' ID.
