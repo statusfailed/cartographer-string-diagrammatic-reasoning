@@ -85,6 +85,12 @@ toProxy _ = Proxy
 toPortRole :: Reifies a PortRole => Port a f -> PortRole
 toPortRole = reflect . toProxy
 
+-- | scott-encoded version- avoid having to case split everywhere.
+portRole :: Reifies a PortRole => b -> b -> Port a f -> b
+portRole s t p = case toPortRole p of
+  Source -> s
+  Target -> t
+
 -- | The type of Hypergraphs, parametrised by the type of generators (sig).
 -- By using different types for "f" we can make this open or closed
 -- hypergraphs.

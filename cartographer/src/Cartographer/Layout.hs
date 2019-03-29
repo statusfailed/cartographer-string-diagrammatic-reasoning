@@ -31,6 +31,43 @@ import qualified Data.Equivalence as Equivalence
 
 import Data.Reflection
 
+-- TODO: document this class
+-- gist: the "geometric" information about a generator, like where its ports
+-- are positioned relative to the top, and its height.
+class Hypergraph.Signature sig => Generator sig where
+  generatorHeight  :: sig -> Int   -- ^ height of the generator
+  generatorInputs  :: sig -> [Int] -- ^ port offset of target ports
+  generatorOutputs :: sig -> [Int] -- ^ port offset of source ports
+  -- "laws":
+  --  1) length (generatorSources e) <= generatorHeight
+  --  2) length (generatorTargets e) <= generatorHeight
+
+-- | Calculate the y-coordinate distance of a port from the topmost tile of its
+-- generator, or Nothing if it doesn't exist.
+-- NOTE: this port geometry stuff kinda sucks. Would be much nicer to have all
+-- generators as single 1x1 tiles, and just evenly space wires ...
+portOffset
+  :: (Reifies a PortRole, Generator sig)
+  => Port a Open
+  -> Layout sig
+  -> Maybe Int
+portOffset (Port Boundary i) layout = Just i
+portOffset p@(Port (Gen e) i) layout = do
+  sig <- Map.lookup e (Hypergraph.signatures . hypergraph $ layout)
+  f sig
+  where
+    -- guard division by zero- note also "mod" check below, which ensures we
+    -- dont index past end of array.
+    g n x = if n == 0 then Nothing else Just x
+
+    f sig =
+      let (ni, no) = Hypergraph.toSize sig
+      in  case Hypergraph.toPortRole p of
+          -- Source port means OUTPUT of a generator.
+          Source -> g no $ (generatorOutputs sig ++ [0..no]) !! (i `mod` no)
+          -- Target port means
+          Target -> g ni $ (generatorInputs  sig ++ [0..ni]) !! (i `mod` ni)
+
 newtype Layer = Layer { unLayer :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
 
@@ -148,6 +185,8 @@ connectPorts s t layout = layout'
         then disconnectTarget t l
         else l
 
+    -- TODO: this should be portPosition if we want the pseudo to appear at the
+    -- same y-coordinate as the port.
     base l = maybe err id (generatorPosition s l)
       where err = error $ "connectPorts: lookup error " ++ show s
 
@@ -218,8 +257,8 @@ generatorPosition
   -> Layout sig
   -> Maybe Position
 generatorPosition p l = case p of
-  Port Boundary i -> return (V2 bx i) -- bx depends on port role
-  Port (Gen e) i  -> fmap (+ V2 1 i) . Grid.positionOf (TileHyperEdge e) $ g
+  Port Boundary i -> return (V2 bx 0) -- bx depends on port role
+  Port (Gen e) i  -> fmap (+ V2 1 0) . Grid.positionOf (TileHyperEdge e) $ g
   where
     g       = grid l
     V2 w h  = Grid.dimensions g
@@ -236,19 +275,16 @@ boundaryPosition role i l = V2 bx i
 -- | Calculate the integer-grid coordinates of a *port*, rather than its
 -- generator.
 portPosition
-  :: Reifies a PortRole
-  => (sig -> PortRole -> Int -> V2 Int)
-  -- ^ Compute the offset of a port given its generator, role, and index.
-  -> Port a Open
+  :: (Generator sig, Reifies a PortRole)
+  => Port a Open
   -> Layout sig
   -> Maybe Position
-portPosition _ p@(Port Boundary i) l = return (boundaryPosition role i l)
+portPosition p@(Port Boundary i) l = return (boundaryPosition role i l)
   where role = Hypergraph.toPortRole p
-portPosition portOffset p@(Port (Gen e) i) l = do
+portPosition p@(Port (Gen e) i) l = do
   pos <- generatorPosition p l
-  sig <- Map.lookup e (Hypergraph.signatures . hypergraph $ l)
-  return $ pos + portOffset sig role i
-  where role = Hypergraph.toPortRole p
+  offset <- portOffset p l
+  return $ pos + V2 0 offset
 
 -- | Compute which pseudonodes must exist for a given connection
 connectionPseudoNodes

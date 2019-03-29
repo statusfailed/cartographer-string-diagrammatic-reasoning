@@ -48,10 +48,11 @@ data Renderable sig v = Renderable
   } deriving(Eq, Ord, Read, Show, Functor)
 
 -- TODO: FIXME (finish implementation)
-toGridCoordinates :: Layout sig -> Renderable sig Position
+toGridCoordinates
+  :: Layout.Generator sig => Layout sig -> Renderable sig Position
 toGridCoordinates l = Renderable
   { tiles = toTiles l
-  , wires = toWires (\_ v i -> v + V2 0 i) l
+  , wires = toWires l
   , dimensions = Layout.dimensions l
   }
 
@@ -77,12 +78,10 @@ toTiles layout = fmap f . Map.toList . Layout.positions $ layout
 --      * TileHyperEdge (Port Boundary i)  ---> TilePseudoNode pn
 --      * (V2 0 i) ---> Grid.position pn
 toWires
-  :: (sig -> V2 Int -> Int -> V2 Int)
-  -- ^ Find the location of a port, given the generator location, port role,
-  -- and port index.
-  -> Layout sig
+  :: Layout.Generator sig
+  => Layout sig
   -> [(Position, Position)]
-toWires portPosition layout =
+toWires layout =
   flip wirePosition layout <$> (breakWire' =<< allWires layout)
   where
     breakWire' = flip breakWire layout
@@ -120,7 +119,8 @@ breakWire (source, target) layout = zip sources targets where
 
 {-# WARNING wirePosition "partial function" #-}
 wirePosition
-  :: IntermediateWire
+  :: (Layout.Generator sig)
+  => IntermediateWire
   -> Layout sig
   -- ^ TODO: FIXME: cache information like this map and diagram width and use
   -- reader monad to tidy up!
@@ -132,12 +132,14 @@ wirePosition (s, t) layout = (ps, pt) where
 {-# WARNING endpointPosition "partial function" #-}
 -- | Get the tile position of an 'Endpoint'
 endpointPosition
-  :: Reifies a PortRole
-  => Endpoint a -> Layout sig -> Position
+  :: (Layout.Generator sig, Reifies a PortRole)
+  => Endpoint a
+  -> Layout sig
+  -> Position
 endpointPosition e layout = case e of
-  TileHyperEdge p   -> case Layout.portPosition (\_ _ i -> V2 0 0) p layout of
+  TileHyperEdge p   -> case Layout.portPosition p layout of
     Just  v -> v
-    Nothing -> error $ "endpointPosition: missing hyperedge posn or sig"
+    Nothing -> error $ "endpointPosition: missing hyperedge posn or sig: " ++ show p
   TilePseudoNode pn -> case Layout.positionOf (TilePseudoNode pn) layout of
     Just r -> r + V2 1 0
     Nothing -> error $ "endpointPosition: missing key " ++ show pn

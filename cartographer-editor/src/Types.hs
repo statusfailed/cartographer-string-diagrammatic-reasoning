@@ -2,9 +2,11 @@ module Types where
 
 import Miso.String (MisoString)
 import Data.Hypergraph
+import qualified Cartographer.Layout as Layout
 
 data Generator = Generator
   { size :: (Int, Int)
+  -- offsets of inputs and outputs. TODO: maybe throw this all away lol
   , ports :: ([Int], [Int])
   , color :: MisoString
   , name :: MisoString
@@ -12,6 +14,11 @@ data Generator = Generator
 
 instance Signature Generator where
   toSize = size
+
+instance Layout.Generator Generator where
+  generatorHeight  = tileHeight
+  generatorInputs  = fst . ports
+  generatorOutputs = snd . ports
 
 -- | Height (in tiles) of the generator.
 -- TODO: explain this better.

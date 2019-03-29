@@ -69,6 +69,7 @@ pseudotest2 =
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port Boundary 2)
   , snd . Layout.placeGenerator counit 1 (V2 2 1)
+  , Layout.connectPorts (Hypergraph.Port (Gen 1) 0) (Hypergraph.Port (Gen 2) 2)
   ]
 
 bigtest :: [Layout Generator -> Layout Generator]
@@ -103,7 +104,7 @@ example1 :: Layout Generator
 example1 = runOperations operations
 
 emptyModel :: Model
-emptyModel = Model (runOperations operations) (length operations)
+emptyModel = Model (runOperations []) 0 -- (runOperations operations) (length operations)
 
 -- | Sum type for application events
 data Action = NoOp | AddNumOps Int
