@@ -56,10 +56,10 @@ data RawAction = RawClickedTile (V2 Int)
 --    An empty grid square in a "wires" column
 --    An empty grid square in a "generators" column
 data Action = Action
-  { _clickedTilePosition :: V2 Int
+  { _actionPosition :: V2 Int
   -- ^ The position of the tile that was clicked, in spaced integer coords
   -- (i.e., including wires)
-  , _clickedTilePorts    :: Maybe ClickedPorts
+  , _actionClickedPorts    :: Maybe ClickedPorts
   -- ^ The displayed grid is "wires" columns interspersed between "generator"
   -- columns. If a "wires" column is clicked, this is Nothing.
   } deriving(Eq, Ord, Read, Show)
@@ -76,16 +76,17 @@ data ClickedPorts = ClickedPorts
   -- ^ The output port on this tile, if any.
   } deriving(Eq, Ord, Read, Show)
 
-
 -------------------------------
 -- Convert from a RawAction to an Action
 
 -- | Given a 'RawAction' - a click on the grid at particular coordinates -
 -- translate this into an 'Action', which tells us what was at those
 -- coordinates.
-{-toAction :: MonadReader (Layout sig) m => RawAction -> m Action-}
-toAction :: Layout.Generator sig => RawAction -> Layout sig -> Action
-toAction (RawClickedTile v@(V2 x y)) layout = case even x of
+toAction
+  :: (Layout.Generator sig, MonadReader (Layout sig) m)
+  => RawAction
+  -> m Action
+toAction (RawClickedTile v@(V2 x y)) = reader $ \layout -> case even x of
   -- x is even: we're in a "generator" column
   True  -> Action v (Just $ clickedPorts v layout)
 
@@ -94,8 +95,10 @@ toAction (RawClickedTile v@(V2 x y)) layout = case even x of
 
 -- | NOTE: this is kind of a crappy implementation because x has to be odd,
 -- which is super weird?
-{-clickedPorts :: MonadReader (Layout sig) m => V2 Int -> m Action-}
-{-clickedPorts :: V2 Int -> Layout sig -> m Action-}
+clickedPorts
+  :: (Layout.Generator sig, MonadReader (Layout sig) m)
+  => V2 Int
+  -> m ClickedPorts
 clickedPorts (V2 x y) = reader $ \layout ->
   uncurry (ClickedPorts v') $ Layout.lookup v' layout
   where

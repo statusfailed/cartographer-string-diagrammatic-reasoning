@@ -166,16 +166,14 @@ offsetToPorts e i layout = case signature e layout of
 -- insert new pseudonodes for every wire.
 -- TODO: this is ridiculously inefficient; we can simply add new pseudonodes as
 placeGenerator
-  :: Hypergraph.Signature sig
+  :: Generator sig
   => sig
   -- ^ What kind of generator?
-  -> Grid.Height
-  -- ^ How many grid-squares tall is it? (TODO: work this out?)
   -> Position
   -- ^ Where to put it in the grid?
   -> Layout sig
   -> (HyperEdgeId, Layout sig)
-placeGenerator sig height pos l = (nextId, recomputePseudoNodes l') where
+placeGenerator sig pos l = (nextId, recomputePseudoNodes l') where
   dims = Hypergraph.toSize sig
   edgeId = nextHyperEdgeId l
   nextId = succ edgeId
@@ -190,6 +188,7 @@ placeGenerator sig height pos l = (nextId, recomputePseudoNodes l') where
     , nextHyperEdgeId = nextId
     -- Assign new HyperEdgeId and return it
     }
+  height = Grid.Height (generatorHeight sig)
 
 -- | Recompute 'PseudoNode's for the entire Layout.
 -- NOTE: this works by reconnecting every pair of connected ports in the graph,

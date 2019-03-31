@@ -9,6 +9,7 @@ module Cartographer.Viewer
   ( Generator(..)
   , ViewerOptions(..)
   , Action(..)
+  , ClickedPorts(..)
   , view
   , RawAction(..)
   , viewRaw

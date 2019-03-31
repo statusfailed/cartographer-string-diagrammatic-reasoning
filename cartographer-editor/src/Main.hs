@@ -17,7 +17,7 @@ import Linear.V2 (V2(..))
 import Cartographer.Viewer (ViewerOptions(..), Generator(..), RawAction(..))
 import qualified Cartographer.Viewer as Viewer
 
-import Cartographer.Editor
+import Cartographer.Editor ( )
 
 import Debug.Trace (traceShow)
 
@@ -52,9 +52,9 @@ operations = pseudotest2
 
 pseudotest :: [Layout Generator -> Layout Generator]
 pseudotest =
-  [ snd . Layout.placeGenerator unit   1 (V2 0 0)
-  , snd . Layout.placeGenerator counit 1 (V2 2 1)
-  , snd . Layout.placeGenerator copy   3 (V2 1 0) -- gets in way of pseudo!
+  [ snd . Layout.placeGenerator unit   (V2 0 0)
+  , snd . Layout.placeGenerator counit (V2 2 1)
+  , snd . Layout.placeGenerator copy   (V2 1 0) -- gets in way of pseudo!
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 2) 1)
   , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
@@ -68,20 +68,20 @@ pseudotest =
 -- pseudos must be inserted.
 pseudotest2 :: [Layout Generator -> Layout Generator]
 pseudotest2 =
-  [ snd . Layout.placeGenerator unit   1 (V2 0 0)
-  , snd . Layout.placeGenerator copy   3 (V2 1 0) -- gets in way of pseudo!
+  [ snd . Layout.placeGenerator unit   (V2 0 0)
+  , snd . Layout.placeGenerator copy   (V2 1 0) -- gets in way of pseudo!
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port Boundary 2)
-  , snd . Layout.placeGenerator counit 1 (V2 2 1)
+  , snd . Layout.placeGenerator counit (V2 2 1)
   , Layout.connectPorts (Hypergraph.Port (Gen 1) 0) (Hypergraph.Port (Gen 2) 2)
   ]
 
 bigtest :: [Layout Generator -> Layout Generator]
 bigtest =
-  [ snd . Layout.placeGenerator counit  1 (V2 1 4)
-  , snd . Layout.placeGenerator py      3 (V2 1 0)
-  , snd . Layout.placeGenerator copy    3 (V2 0 2)
-  , snd . Layout.placeGenerator unit    1 (V2 0 0)
+  [ snd . Layout.placeGenerator counit  (V2 1 4)
+  , snd . Layout.placeGenerator py      (V2 1 0)
+  , snd . Layout.placeGenerator copy    (V2 0 2)
+  , snd . Layout.placeGenerator unit    (V2 0 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
   , Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 0) 0)
   -- Wires to boundaries
