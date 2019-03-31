@@ -59,7 +59,7 @@ viewRenderable (Renderable tiles wires dimensions) opts =
   -- clickable!
   Svg.svg_ svgAttrs
     [ diagramStyle
-    , gridLines unitSize scaledDims
+    , gridLines unitSize (scaledDims + V2 0 unitSize)
     , Svg.g_ [] (fmap g wires)
     , Svg.g_ [] (fmap f tiles)
     , clickableGridSquares spacedDims unitSize
@@ -75,7 +75,7 @@ viewRenderable (Renderable tiles wires dimensions) opts =
   -- grid.
     spacedDims = V2 2 1 * dimensions - V2 1 0
     scaledDims = fmap fromIntegral (tileSize *^ spacedDims)
-    V2 imgWidth imgHeight = scaledDims
+    V2 imgWidth imgHeight = scaledDims + V2 0 unitSize
     svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
 
 viewTile :: Tile Generator -> Position -> ViewerOptions -> View action

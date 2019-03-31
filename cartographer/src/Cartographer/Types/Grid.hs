@@ -4,9 +4,16 @@
 -- | The job of the 'Grid'  module is to manage the positions of the generators
 -- in a Hypergraph.
 -- It does not concern itself with whether nodes are pseudo or actual
--- generators,
+-- generators, merely how "tall" things are, what their positions are, and how
+-- to avoid "collisions.
 module Cartographer.Types.Grid where
 
+-- todo: invariants:
+--  1) if I place a tile of height n, I should see n squares occupied
+--  2) if I place k tiles of height n, I should see k*n squares occupied
+--  3) the squares occupied by the same tile should always be contiguous
+
+import Prelude hiding (lookup)
 import Linear.V2
 
 import Data.Equivalence (Equivalence(..))
@@ -58,16 +65,23 @@ empty = Grid Equivalence.empty
 -- numEdges g == numEdges (shiftOffset v i g)
 shiftOffset
   :: Ord tile
-  => V2 Int -- ^ Layer (x) and Offset (y)
-  -> Int    -- ^ shift by this amount
+  => V2 Int
+  -- ^ generators occupying positions with larger or equal y will be shifted
+  -> Int
+  -- ^ shift by this amount
   -> Grid tile
   -> Grid tile
-shiftOffset (V2 x y) dy (Grid eq) = Grid (Equivalence.mapElems f eq)
+shiftOffset v@(V2 x y) dy grid@(Grid eq) = Grid (Equivalence.mapElems f eq)
   where
+    -- if a generator is at v, we have to shift from the TOP of that generator,
+    -- not just the  middle, or the tiles of the generator will become
+    -- discontinuous.
+    V2 _ ystart = maybe v id $ flip positionOf grid . fst =<< lookup v grid
+
     -- NOTE: f must be injective (required by mapElems)
-    f v@(V2 x' y')
-      | x == x' && y' >= y = V2 x' (y' + dy)
-      | otherwise          = v
+    f v'@(V2 x' y')
+      | x == x' && y' >= ystart = V2 x' (y' + dy + (y - ystart))
+      | otherwise               = v'
 
 -- | Place a tile at a particular position.
 -- If this causes overlap, other tiles in the same layer (y-coordinate) will be
@@ -75,19 +89,21 @@ shiftOffset (V2 x y) dy (Grid eq) = Grid (Equivalence.mapElems f eq)
 -- TODO: behaviour if Height < 1 means *nothing* added. Is that right?
 placeTile :: Ord tile => tile -> Height -> Position -> Grid tile -> Grid tile
 placeTile tile h v grid@(Grid eq) =
-  case filter (isJust . snd) contents of
+  -- check all occupied tiles that would conflict.
+  case fmap fst $ filter (isJust . snd) contents of
     -- No conflicts; just drop in the tile.
     [] -> Grid (place eq)
 
     -- Conflicts- tile would overlap. First shift everything in the layer down
     -- by the required amount of space.
     -- TODO: shift by less- this shifts by height of inserted tile
-    ((conflict, _) : _) ->
+    (conflict : _) ->
       let (Grid eq') = shiftOffset conflict (unHeight h) grid
       in  Grid (place eq')
 
   where
     -- All positions that will be occupied by the new tile.
+    -- NOTE: `unHeight h - 1` *is* correct!
     vs = [ v + V2 0 y | y <- [0..unHeight h - 1] ]
 
     -- Contents of each of those positions

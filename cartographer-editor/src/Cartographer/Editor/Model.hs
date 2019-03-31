@@ -13,8 +13,8 @@ import qualified Cartographer.Viewer as Viewer
 import Cartographer.Editor.Types as Editor
 
 -- | Update the Editor model without side-effects
-update :: Editor.Model -> Editor.Action -> Editor.Model
-update (Model layout actionState) action = case action of
+update :: Editor.Action -> Editor.Model -> Editor.Model
+update action (Model layout actionState) = case action of
   ViewerAction va ->
     let (as, f) = updateActionState actionState va
     in  Model (f layout) as
@@ -42,6 +42,9 @@ updateActionState s@(ConnectTarget o) a = case a of
 updateActionState (PlaceGenerator g) a = case a of
   Viewer.Action pos _ ->
     (Done, snd . Layout.placeGenerator g (spacedToExtended pos))
+  _ -> (Done, id)
+
+updateActionState Done a = (Done, id)
 
 -- | Turned spaced coordinates into extended coordinates (see DESIGN.md)
 --

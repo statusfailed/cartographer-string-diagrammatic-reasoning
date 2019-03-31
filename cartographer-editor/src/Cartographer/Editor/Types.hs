@@ -15,6 +15,9 @@ data Model = Model
   , _modelActionState :: ActionState
   } deriving(Eq, Ord, Show)
 
+emptyModel :: Model
+emptyModel = Model Layout.empty Done
+
 data Action
   = ViewerAction Viewer.Action
   | StartConnect

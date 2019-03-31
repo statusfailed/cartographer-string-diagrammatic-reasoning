@@ -17,7 +17,7 @@ import Linear.V2 (V2(..))
 import Cartographer.Viewer (ViewerOptions(..), Generator(..), RawAction(..))
 import qualified Cartographer.Viewer as Viewer
 
-import Cartographer.Editor ( )
+import qualified Cartographer.Editor as Editor
 
 import Debug.Trace (traceShow)
 
@@ -39,79 +39,29 @@ unit = Generator (0, 1) ([], [0]) "black" "unit"
 counit :: Generator
 counit = Generator (1, 0) ([0], []) "black" "counit"
 
+bialgebra :: [Generator]
+bialgebra = [py, copy, unit, counit]
+
+runOps xs = foldl (flip (.)) id xs Layout.empty
+
+operations =
+  [ snd . Layout.placeGenerator copy (V2 0 0)
+  , snd . Layout.placeGenerator unit (V2 0 1)
+  ]
+
+testLayout = runOps operations
+
 -------------------------------
 -- Miso code
 
--- | Type synonym for an application model
 data Model = Model
-  { layout :: Layout Generator
-  , numOps :: Int
+  { editor :: Editor.Model
   } deriving(Eq, Ord, Show)
 
-operations = pseudotest2
-
-pseudotest :: [Layout Generator -> Layout Generator]
-pseudotest =
-  [ snd . Layout.placeGenerator unit   (V2 0 0)
-  , snd . Layout.placeGenerator counit (V2 2 1)
-  , snd . Layout.placeGenerator copy   (V2 1 0) -- gets in way of pseudo!
-  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 0)
-  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 2) 1)
-  , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
-  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port Boundary 2)
-  , Layout.connectPorts (Hypergraph.Port Boundary 0) (Hypergraph.Port (Gen 2) 1)
-  , Layout.connectPorts (Hypergraph.Port (Gen 2) 2) (Hypergraph.Port Boundary 0)
-  ]
-
--- NOTE: the final command will crash the Layout.
--- This is because it causes missing pseudonodes- when the grid gets wider,
--- pseudos must be inserted.
-pseudotest2 :: [Layout Generator -> Layout Generator]
-pseudotest2 =
-  [ snd . Layout.placeGenerator unit   (V2 0 0)
-  , snd . Layout.placeGenerator copy   (V2 1 0) -- gets in way of pseudo!
-  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port (Gen 1) 0)
-  , Layout.connectPorts (Hypergraph.Port (Gen 0) 0) (Hypergraph.Port Boundary 2)
-  , snd . Layout.placeGenerator counit (V2 2 1)
-  , Layout.connectPorts (Hypergraph.Port (Gen 1) 0) (Hypergraph.Port (Gen 2) 2)
-  ]
-
-bigtest :: [Layout Generator -> Layout Generator]
-bigtest =
-  [ snd . Layout.placeGenerator counit  (V2 1 4)
-  , snd . Layout.placeGenerator py      (V2 1 0)
-  , snd . Layout.placeGenerator copy    (V2 0 2)
-  , snd . Layout.placeGenerator unit    (V2 0 0)
-  , Layout.connectPorts (Hypergraph.Port (Gen 2) 0) (Hypergraph.Port (Gen 1) 0)
-  , Layout.connectPorts (Hypergraph.Port (Gen 3) 0) (Hypergraph.Port (Gen 0) 0)
-  -- Wires to boundaries
-  -- TODO
-  -- Wires requiring pseudonodes
-  -- , snd . Layout.placeGenerator unit    1 2 0
-  -- , Layout.connectPorts (Hypergraph.Port (Gen 2) 1) (Hypergraph.Port (Gen 4) 0)
-  -- move vertical
-  -- move horizontal
-  --  move into "wire" column - creates new column.
-  -- add column?
-  -- move many?
-  -- verify everything connected (before matching)
-  ]
-
-runOperations xs = foldl (flip (.)) id xs Layout.empty
-
--- TODO: right now we use the layout with a single 1x1 generator, placed at the
--- origin, which is 1 grid-square tall.
-example0 :: Layout Generator
-example0 = runOperations (take 4 operations)
-
-example1 :: Layout Generator
-example1 = runOperations operations
-
-emptyModel :: Model
-emptyModel = Model (runOperations []) 0 -- (runOperations operations) (length operations)
+emptyModel = Model (Editor.emptyModel { Editor._modelLayout = testLayout })
 
 -- | Sum type for application events
-data Action = NoOp | ViewerAction Viewer.Action | AddNumOps Int
+data Action = NoOp | EditorAction Editor.Action
   deriving (Eq, Ord, Read, Show)
 
 -- | Entry point for a miso application
@@ -124,30 +74,14 @@ main = do
     update = updateModel
     view   = viewModel
     events = defaultEvents
-    subs   = [arrowsSub arrowToAction]
+    subs   = []
     mountPoint = Nothing
 
-arrowToAction :: Arrows -> Action
-arrowToAction (Arrows x _) = AddNumOps x
-
 updateModel :: Action -> Model -> Effect Action Model
-updateModel action m = case action of
-  NoOp -> noEff m
-  AddNumOps k ->
-    let n = clamp (numOps m + k)
-    in
-      noEff $ m { numOps = n
-                , layout = runOperations (take n operations)
-                }
-  ViewerAction x -> traceShow x (return m)
-
-  where
-    clamp = max 0 . min (length operations)
+updateModel action m@(Model editor) = case action of
+  NoOp -> return m
+  EditorAction a ->
+    traceShow a . traceShow m . return $ Model (Editor.update a editor)
 
 viewModel :: Model -> View Action
-viewModel m@(Model layout numOps) = div_ []
-  [ button_ [ onClick (AddNumOps (-1)) ] [ "<<" ]
-  , button_ [ onClick (AddNumOps 1   ) ] [ ">>" ]
-  , div_ [] [ ViewerAction <$> Viewer.view layout (ViewerOptions 50) ]
-  , div_ [] [ text (ms $ show m) ]
-  ]
+viewModel (Model editor) = EditorAction <$> Editor.view bialgebra editor

@@ -24,22 +24,25 @@ view gs (Model layout actionState) = Miso.div_ []
 -- | Show the toolbar (above the viewer)
 -- this consists of a "connect ports" button, and a number of generator
 -- buttons, which can be placed into the current diagram.
-toolbar :: [Generator] -> View action
+toolbar :: [Generator] -> View Action
 toolbar gs = Miso.div_ [] $ connectButton : fmap generatorButton gs
 
-generatorButton :: Generator -> View action
-generatorButton g = Miso.button_ []
+generatorButton :: Generator -> View Action
+generatorButton g = Miso.button_ [Miso.onClick (StartPlaceGenerator g)]
   [ Svg.svg_ attrs [ Viewer.viewGenerator g 0 opts ] ]
   where 
     tileSize = 20
     opts = Viewer.ViewerOptions tileSize -- TODO: dont hardcode this?
     height = fromIntegral (Layout.generatorHeight g)
-    attrs = [ Svg.height_ (ms $ height * tileSize), Svg.width_ (ms tileSize) ]
+    attrs =
+      [ Svg.height_ (ms $ height * tileSize)
+      , Svg.width_ (ms tileSize)
+      ]
 
 -- | The "connect ports" button.
 -- NOTE: using "free icons" from http://xahlee.info/comp/unicode_arrows.html
-connectButton :: View action
-connectButton = Miso.button_ [] [ icon ]
+connectButton :: View Action
+connectButton = Miso.button_ [Miso.onClick StartConnect] [ icon ]
   where
     icon = "↦"
 

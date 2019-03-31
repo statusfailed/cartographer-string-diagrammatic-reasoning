@@ -3,6 +3,7 @@
 -- This module adds buttons to connect ports and add generators to the diagram.
 module Cartographer.Editor
   ( Model(..)
+  , emptyModel
   , Action(..)
   , update
   , view
