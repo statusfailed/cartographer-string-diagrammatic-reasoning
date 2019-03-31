@@ -14,9 +14,10 @@ import qualified Data.Hypergraph as Hypergraph
 
 import Linear.V2 (V2(..))
 
-import Cartographer.Viewer (ViewerOptions(..))
+import Cartographer.Viewer (ViewerOptions(..), Generator(..), RawAction(..))
 import qualified Cartographer.Viewer as Viewer
-import Cartographer.Viewer.Types (Generator(..), RawAction(..))
+
+import Cartographer.Editor
 
 import Debug.Trace (traceShow)
 

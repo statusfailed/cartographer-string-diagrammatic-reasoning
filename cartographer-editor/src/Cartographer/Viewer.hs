@@ -7,10 +7,12 @@
 -- 'Cartographer.Editor', which wraps this module.
 module Cartographer.Viewer
   ( Generator(..)
+  , ViewerOptions(..)
   , Action(..)
   , view
+  , RawAction(..)
   , viewRaw
-  , ViewerOptions(..)
+  , viewGenerator
   ) where
 
 import Cartographer.Viewer.Types
