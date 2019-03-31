@@ -9,6 +9,7 @@ module Cartographer.Viewer
   ( Generator(..)
   , Action(..)
   , view
+  , viewRaw
   , ViewerOptions(..)
   ) where
 

@@ -1,24 +1,12 @@
-module Model where
+module Cartographer.Viewer.Model
+  ( toAction
+  ) where
 
--- fmap foo view
-foo :: MonadReader Model m => Position -> m ClickedTile
-foo v@(V2 x y) = ClickedTile v $ case odd x of
-  True  -> Right (clickedGenerator v)
-  False -> Left (clickedWires v)
+import Control.Monad.Reader.Class
 
--------------------------------
--- TODO: rethink the below two functions;
--- they require that:
---  a) clickedGenerator => x is Odd
---  b) clickedWires     => x is Even
+import Cartographer.Layout (Layout)
+import qualified Cartographer.Layout as Layout
 
-clickedGenerator :: MonadReader Model m -> Position -> m ClickedGenerator
-clickedGenerator (V2 x y) = 
+import Cartographer.Viewer.Types
 
--- Given a position, make a ClickedWires.
-clickedWires :: Position -> m ClickedWires
-clickedWires (V2 x y) = ClickedWires l r
-  where
-    l = (x - 1) `div` 2
-    r = (x + 1) `div` 2
-
+type Model = Layout Generator

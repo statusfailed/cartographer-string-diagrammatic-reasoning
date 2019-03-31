@@ -7,6 +7,9 @@
 -- /This module is intended to be imported qualified./
 module Cartographer.Layout where
 
+import Data.Set (Set)
+import qualified Data.Set as Set
+
 import Data.Map.Strict (Map, (!), (!?))
 import qualified Data.Map.Strict as Map
 
@@ -14,6 +17,7 @@ import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
 import Linear.V2
+import qualified Data.List as List
 import Data.Maybe (catMaybes)
 import Control.Monad (liftM2)
 
@@ -41,32 +45,6 @@ class Hypergraph.Signature sig => Generator sig where
   -- "laws":
   --  1) length (generatorSources e) <= generatorHeight
   --  2) length (generatorTargets e) <= generatorHeight
-
--- | Calculate the y-coordinate distance of a port from the topmost tile of its
--- generator, or Nothing if it doesn't exist.
--- NOTE: this port geometry stuff kinda sucks. Would be much nicer to have all
--- generators as single 1x1 tiles, and just evenly space wires ...
-portOffset
-  :: (Reifies a PortRole, Generator sig)
-  => Port a Open
-  -> Layout sig
-  -> Maybe Int
-portOffset (Port Boundary i) layout = Just i
-portOffset p@(Port (Gen e) i) layout = do
-  sig <- Map.lookup e (Hypergraph.signatures . hypergraph $ layout)
-  f sig
-  where
-    -- guard division by zero- note also "mod" check below, which ensures we
-    -- dont index past end of array.
-    g n x = if n == 0 then Nothing else Just x
-
-    f sig =
-      let (ni, no) = Hypergraph.toSize sig
-      in  case Hypergraph.toPortRole p of
-          -- Source port means OUTPUT of a generator.
-          Source -> g no $ (generatorOutputs sig ++ [0..no]) !! (i `mod` no)
-          -- Target port means
-          Target -> g ni $ (generatorInputs  sig ++ [0..ni]) !! (i `mod` ni)
 
 newtype Layer = Layer { unLayer :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
@@ -111,6 +89,74 @@ empty = Layout
 -- TODO: account for number of boundary nodes
 dimensions :: Layout sig -> V2 Int
 dimensions = (V2 2 0 +) . Grid.dimensions . grid
+
+-- | Look up what's at a particular position in the layout.
+-- If no generator or boundary was at that position, Nothing is returned.
+lookup
+  :: Generator sig
+  => V2 Int
+  -> Layout sig
+  -> (Maybe (Port Target Open), Maybe (Port Source Open))
+lookup v@(V2 x y) layout
+  | x <= 0 = (Nothing, Just (Port Boundary y))
+  | x >= w = (Just (Port Boundary y), Nothing)
+  | otherwise =
+      case tilesAsList <$> Grid.lookup v' (grid layout) of
+        Nothing                    -> (Nothing, Nothing)
+        Just (TilePseudoNode _, _) -> (Nothing, Nothing)
+        Just (TileHyperEdge e, []) -> (Nothing, Nothing) -- this is really a bug
+        Just (TileHyperEdge e, vs) -> offsetToPorts e (tileOffset v vs) layout
+  where
+    V2 w _ = dimensions layout
+    v' = v - V2 1 0 -- lose the left boundary for "Grid" space coordinates.
+
+    tilesAsList (a, s) = (a, Set.toList s)
+    tileOffset v vs = let (V2 _ y) = v - minimum vs in y
+
+signature :: HyperEdgeId -> Layout sig -> Maybe sig
+signature e = Map.lookup e . Hypergraph.signatures . hypergraph
+
+-- | Calculate the y-coordinate distance of a port from the topmost tile of its
+-- generator, or Nothing if it doesn't exist.
+-- NOTE: this port geometry stuff kinda sucks. Would be much nicer to have all
+-- generators as single 1x1 tiles, and just evenly space wires ...
+portOffset
+  :: (Reifies a PortRole, Generator sig)
+  => Port a Open
+  -> Layout sig
+  -> Maybe Int
+portOffset (Port Boundary i) layout = Just i
+portOffset p@(Port (Gen e) i) layout = do
+  sig <- signature e layout
+  f sig
+  where
+    -- guard division by zero- note also "mod" check below, which ensures we
+    -- dont index past end of array.
+    g n x = if n == 0 then Nothing else Just x
+
+    f sig =
+      let (ni, no) = Hypergraph.toSize sig
+      in  case Hypergraph.toPortRole p of
+          -- Source port means OUTPUT of a generator.
+          Source -> g no $ (generatorOutputs sig ++ [0..no]) !! (i `mod` no)
+          -- Target port means
+          Target -> g ni $ (generatorInputs  sig ++ [0..ni]) !! (i `mod` ni)
+
+-- | Given a HyperEdgeId and an offset, what ports does it correspond to?
+-- This can be a source port, or target, or both.
+offsetToPorts
+  :: Generator sig
+  => HyperEdgeId
+  -> Int
+  -> Layout sig
+  -> (Maybe (Port Target Open), Maybe (Port Source Open))
+offsetToPorts e i layout = case signature e layout of
+  Nothing  -> (Nothing, Nothing)
+  Just sig ->
+    ( Port (Gen e) <$> List.findIndex (==i) (generatorInputs sig)
+    , Port (Gen e) <$> List.findIndex (==i) (generatorOutputs sig)
+    )
+
 
 -- | Insert a generator into a specific layer, at a particular offset.
 -- If it would overlap with another generator, the generators are shifted down

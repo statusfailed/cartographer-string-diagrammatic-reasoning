@@ -43,8 +43,13 @@ import qualified Data.Equivalence as Equivalence
 import Cartographer.Viewer.Drawing
 import Cartographer.Viewer.Types
 
-view :: Layout Generator -> ViewerOptions -> View RawAction
-view layout opts = flip viewRenderable opts . Draw.toGridCoordinates $ layout
+import Cartographer.Viewer.Model (toAction)
+
+view :: Layout Generator -> ViewerOptions -> View Action
+view layout opts = flip toAction layout <$> viewRaw layout opts
+
+viewRaw :: Layout Generator -> ViewerOptions -> View RawAction
+viewRaw layout opts = flip viewRenderable opts . Draw.toGridCoordinates $ layout
 
 viewRenderable
   :: Draw.Renderable Generator Position -> ViewerOptions -> View RawAction

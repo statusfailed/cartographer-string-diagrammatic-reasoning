@@ -110,7 +110,7 @@ emptyModel :: Model
 emptyModel = Model (runOperations []) 0 -- (runOperations operations) (length operations)
 
 -- | Sum type for application events
-data Action = NoOp | Raw RawAction | AddNumOps Int
+data Action = NoOp | ViewerAction Viewer.Action | AddNumOps Int
   deriving (Eq, Ord, Read, Show)
 
 -- | Entry point for a miso application
@@ -138,15 +138,15 @@ updateModel action m = case action of
       noEff $ m { numOps = n
                 , layout = runOperations (take n operations)
                 }
-  Raw x -> traceShow x (return m)
+  ViewerAction x -> traceShow x (return m)
 
   where
-    clamp= max 0 . min (length operations)
+    clamp = max 0 . min (length operations)
 
 viewModel :: Model -> View Action
 viewModel m@(Model layout numOps) = div_ []
   [ button_ [ onClick (AddNumOps (-1)) ] [ "<<" ]
   , button_ [ onClick (AddNumOps 1   ) ] [ ">>" ]
-  , div_ [] [ Raw <$> Viewer.view layout (ViewerOptions 50) ]
+  , div_ [] [ ViewerAction <$> Viewer.view layout (ViewerOptions 50) ]
   , div_ [] [ text (ms $ show m) ]
   ]
