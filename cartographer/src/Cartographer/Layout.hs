@@ -72,8 +72,6 @@ data Layout sig = Layout
   -- ^ Position of each HyperEdge in the layout.
   , nextHyperEdgeId :: HyperEdgeId
   -- ^ Next free ID to add a HyperEdge.
-  -- TODO: put this in Hypergraph?
-  -- TODO: explicitly keep track of assigned boundary ports?
   } deriving(Eq, Ord, Show)
 
 -- | The empty layout state. An empty hypergraph, nothing positioned, and no
@@ -203,7 +201,7 @@ recomputePseudoNodes l = foldr (uncurry connectPorts) l wires
 --
 -- TODO:
 -- If any of the following are true, the connection is not made:
---    * ports are invalid
+--    * ports are invalid (TODO)
 --    * L(target) <= L(source)
 --
 -- Additionally, A maximum if L(target) - L(source) - 1 pseudonodes are
@@ -216,8 +214,10 @@ connectPorts
   -- ^ Target port
   -> Layout sig
   -> Layout sig
-connectPorts s t layout = layout'
-  { hypergraph = Hypergraph.connect s t (hypergraph layout') }
+connectPorts s t layout
+  | not (canConnectPorts s t layout) = layout
+  | otherwise = layout'
+      { hypergraph = Hypergraph.connect s t (hypergraph layout') }
   where
     -- cleanS and cleanT remove any existing pseudonodes that are no longer
     -- needed. TODO: move this into another function? :-)
@@ -241,6 +241,14 @@ connectPorts s t layout = layout'
     withPseudos l = foldl (flip addPseudo) l $ connectionPseudoNodes s t l
 
     layout' = withPseudos . cleanS . cleanT $ layout
+
+-- | We can form a connection s -> t if L(s) < L(t)
+canConnectPorts :: Port Source Open -> Port Target Open -> Layout sig -> Bool
+canConnectPorts (Port (Gen s) _) (Port (Gen t) _) l = maybe False id $ do
+  (V2 xs _) <- positionOf (TileHyperEdge s) l
+  (V2 xt _) <- positionOf (TileHyperEdge t) l
+  return (xt > xs)
+canConnectPorts _ _ _ = True -- boundaries can always be connected.
 
 -------------------------------
 -- TODO: NOTE: there is definitely a nicer way to write the below two
@@ -351,23 +359,13 @@ layersBetween s t l
 -------------------------------
 -- TODO
 
--- | Insert a new Layer, corresponding to a new column.
-insertLayer :: Layer -> Layout sig -> Layout sig
-insertLayer i l = undefined
-  -- Shift everything >= i up one layer
-  -- Recompute pseudonodes for all connections:
-
--- | This isn't really necessary- we can handle it in the frontend View, and
--- just take the largest connected boundary node as the boundary size?
-addBoundaryNode :: Either Int Int -> Layout sig -> Layout sig
-addBoundaryNode = undefined
-  -- Hypergraph.addBoundaryNode
-
--- Collision resolution for a generator of tileHeight n placed at position p:
---  * Check if p is occupied by another
---  *
---  1) Examine y-positions p, p+1, ... p+n
---  2) If any of those positions
+-- | Insert a new Layer, corresponding to a new column, at a given position.
+insertLayer
+  :: Layer -- ^ X coordinate of layer to insert
+  -> Layout sig
+  -> Layout sig
+insertLayer x layout
+  = layout { grid = Grid.shiftLayer (unLayer x) 1 (grid layout) }
 
 -------------------------------
 -- Post-MVP functionality

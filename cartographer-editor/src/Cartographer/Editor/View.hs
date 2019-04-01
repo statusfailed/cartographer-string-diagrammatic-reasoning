@@ -6,6 +6,8 @@ import qualified Miso as Miso
 import qualified Miso.Svg as Svg
 import Miso.String (ms)
 
+import qualified Data.Hypergraph as Hypergraph
+
 import Cartographer.Layout (Layout(..))
 import qualified Cartographer.Layout as Layout
 
@@ -18,6 +20,7 @@ view :: [Generator] -> Model -> View Editor.Action
 view gs (Model layout actionState) = Miso.div_ []
   [ toolbar gs
   , viewer layout vopts
+  , infoFooter layout
   ]
   where vopts = Viewer.ViewerOptions 50 -- TODO: dont hard-code?
 
@@ -50,3 +53,12 @@ connectButton = Miso.button_ [Miso.onClick StartConnect] [ icon ]
 -- type into the Editor\'s action type.
 viewer :: Layout Generator -> Viewer.ViewerOptions -> View Action
 viewer layout opts = ViewerAction <$> Viewer.view layout opts
+
+-- | Show information about the hypergraph: its current dimensions, and whether
+-- or not it's "valid" - i.e., fully connected up.
+infoFooter :: Layout Generator -> View Action
+infoFooter layout = Miso.div_ []
+  [ Miso.h1_ [] [ Miso.text (ms . show $ Hypergraph.toSize hg)]
+  , Miso.h1_ [] [ Miso.text (if Hypergraph.isComplete hg then "Valid" else "Invalid") ]
+  ]
+  where hg = hypergraph layout

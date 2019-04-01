@@ -22,9 +22,12 @@ module Data.Hypergraph.Type
   , isConnectedTo
   , source
   , target
+  , isComplete
   -- TODO: remove?
   , bfs
   ) where
+
+import Data.Foldable
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -145,6 +148,11 @@ data Open a = Boundary | Gen a
 -- Port Left i) is the size of the boundary.
 type OpenHypergraph sig = Hypergraph Open sig
 
+-- Open hypergraphs have a signature - the number of input and output ports
+-- connected to on the boundary.
+instance Signature sig => Signature (OpenHypergraph sig) where
+  toSize = maxBoundaryPorts
+
 -------------------------------
 -- Basic graphs
 
@@ -165,6 +173,24 @@ twist = Hypergraph conns Map.empty where
     [ (Port Boundary 0, Port Boundary 1)
     , (Port Boundary 1, Port Boundary 0)
     ]
+
+-- | The number of inputs and outputs of a hypergraph.
+-- This is taken as the maximum connected boundary port, or zero if none are
+-- connected.
+maxBoundaryPorts :: Hypergraph Open sig -> (Int, Int)
+maxBoundaryPorts hg = (n, k)
+  where
+    ws = (Bimap.toList . connections) hg
+    ns = ws >>= f . fst
+    ks = ws >>= f . snd
+
+    -- + 1 because ports are zero-indexed.
+    n = case ns of [] -> 0; xs -> maximum xs + 1
+    k = case ks of [] -> 0; xs -> maximum xs + 1
+
+    f :: Port a Open -> [Int]
+    f (Port Boundary i) = [i]
+    f _ = []
 
 -- | Add an edge to a 'Hypergraph'.
 -- TODO: don't let user of this module assign the hyperedge ID-
@@ -213,6 +239,15 @@ target
   :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
   => Port Source f -> Hypergraph f sig -> Maybe (Port Target f)
 target s = Bimap.lookup s . connections
+
+-- | Are all the ports of this hypergraph connected to something?
+-- Yes if 2 * numWires == numPorts
+isComplete :: Signature sig => Hypergraph Open sig -> Bool
+isComplete hg = numPorts == 2 * numWires
+  where
+    numWires = length (Bimap.toList $ connections hg)
+    numPorts = foldl (\s (i,o) -> s + i + o) 0 allPorts
+    allPorts = toSize hg : fmap toSize (toList $ signatures hg)
 
 -------------------------------
 -- Operations / Traversals

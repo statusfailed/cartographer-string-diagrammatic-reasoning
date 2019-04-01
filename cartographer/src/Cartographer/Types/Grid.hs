@@ -83,6 +83,19 @@ shiftOffset v@(V2 x y) dy grid@(Grid eq) = Grid (Equivalence.mapElems f eq)
       | x == x' && y' >= ystart = V2 x' (y' + dy + (y - ystart))
       | otherwise               = v'
 
+-- | Shift all tiles in or above a given layer up by a specified amount.
+shiftLayer
+  :: Ord tile
+  => Int      -- ^ X coordinate
+  -> Int      -- ^ Shift amount
+  -> Grid tile
+  -> Grid tile
+shiftLayer x dx (Grid eq) = Grid (Equivalence.mapElems f eq)
+  where
+    f v@(V2 x' _)
+      | x' >= x    = v + V2 dx 0
+      | otherwise = v
+
 -- | Place a tile at a particular position.
 -- If this causes overlap, other tiles in the same layer (y-coordinate) will be
 -- shifted to make space.

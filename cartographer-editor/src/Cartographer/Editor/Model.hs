@@ -41,7 +41,7 @@ updateActionState s@(ConnectTarget o) a = case a of
 
 updateActionState (PlaceGenerator g) a = case a of
   Viewer.Action pos _ ->
-    (Done, snd . Layout.placeGenerator g (spacedToExtended pos))
+    (Done, insertSpacedCoordinates g pos)
 
 updateActionState Done a = (Done, id)
 
@@ -51,3 +51,16 @@ updateActionState Done a = (Done, id)
 -- us.
 spacedToExtended :: V2 Int -> V2 Int
 spacedToExtended (V2 x y) = V2 (x `div` 2) y
+
+-- | Insert into the Layout in spaced coordinates.
+-- When inserting onto a "wires" column, a layer is first inserted into the
+-- extended grid to the *right* of the wires column.
+-- Otherwise, the generator is inserted into column clicked.
+insertSpacedCoordinates
+  :: Layout.Generator sig
+  => sig -> V2 Int -> Layout sig -> Layout sig
+insertSpacedCoordinates g v@(V2 0 _) = id -- TODO: still ignore left boundary?
+insertSpacedCoordinates g v@(V2 x _) = snd . Layout.placeGenerator g v' . f
+  where
+    f = if odd x then Layout.insertLayer (Layout.Layer x') else id
+    v'@(V2 x' _) = spacedToExtended (v - V2 1 0)
