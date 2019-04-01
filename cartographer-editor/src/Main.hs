@@ -58,7 +58,8 @@ data Model = Model
   { editor :: Editor.Model
   } deriving(Eq, Ord, Show)
 
-emptyModel = Model (Editor.emptyModel { Editor._modelLayout = testLayout })
+{-emptyModel = Model (Editor.emptyModel { Editor._modelLayout = testLayout })-}
+emptyModel = Model Editor.emptyModel
 
 -- | Sum type for application events
 data Action = NoOp | EditorAction Editor.Action
