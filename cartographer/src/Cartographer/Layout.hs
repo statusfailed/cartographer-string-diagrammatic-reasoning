@@ -98,8 +98,8 @@ lookup
   -> Layout sig
   -> (Maybe (Port Target Open), Maybe (Port Source Open))
 lookup v@(V2 x y) layout
-  | x <= 0 = (Nothing, Just (Port Boundary y))
-  | x >= w = (Just (Port Boundary y), Nothing)
+  | x <= 0     = (Nothing, Just (Port Boundary y))
+  | x >= w - 1 = (Just (Port Boundary y), Nothing)
   | otherwise =
       case tilesAsList <$> Grid.lookup v' (grid layout) of
         Nothing                    -> (Nothing, Nothing)

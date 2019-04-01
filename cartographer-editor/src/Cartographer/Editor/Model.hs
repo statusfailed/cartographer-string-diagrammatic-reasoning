@@ -42,7 +42,6 @@ updateActionState s@(ConnectTarget o) a = case a of
 updateActionState (PlaceGenerator g) a = case a of
   Viewer.Action pos _ ->
     (Done, snd . Layout.placeGenerator g (spacedToExtended pos))
-  _ -> (Done, id)
 
 updateActionState Done a = (Done, id)
 
