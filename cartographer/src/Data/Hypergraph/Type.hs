@@ -13,6 +13,7 @@ module Data.Hypergraph.Type
   , Target
   , PortRole(..)
   , Open(..)
+  , open
   , toPortRole
   , Hypergraph(..)
   , empty
@@ -149,6 +150,11 @@ instance Applicative Open where
   pure = Gen
   liftA2 f (Gen a) (Gen b) = Gen (f a b)
   liftA2 f _ _ = Boundary
+
+-- | Fold over an 'Open' value.
+open :: b -> (a -> b) -> Open a -> b
+open b _ Boundary = b
+open _ f (Gen x)  = f x
 
 -- | The type of open hypergraphs.
 -- Instead of allowing "dangling wires", we explicitly have 0xN and Mx0

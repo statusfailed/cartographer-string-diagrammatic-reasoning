@@ -49,7 +49,6 @@ deriving instance Eq (MatchState sig)
 deriving instance Ord (MatchState sig)
 deriving instance Show (MatchState sig)
 
--- TODO: add MonadLogic :-)
 class
   ( MonadReader (MatchEnv sig) m
   , MonadState  (MatchState sig) m
