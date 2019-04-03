@@ -173,10 +173,9 @@ placeGenerator
   -> (HyperEdgeId, Layout sig)
 placeGenerator sig pos l = (nextId, recomputePseudoNodes l') where
   dims = Hypergraph.toSize sig
-  edgeId = nextHyperEdgeId l
   nextId = succ edgeId
   l' = Layout
-    { hypergraph = Hypergraph.addEdge edgeId sig (hypergraph l)
+    { hypergraph = hg
     -- Add new edgeId to hypergraph
 
     , grid =
@@ -187,6 +186,7 @@ placeGenerator sig pos l = (nextId, recomputePseudoNodes l') where
     -- Assign new HyperEdgeId and return it
     }
   height = Grid.Height (generatorHeight sig)
+  (edgeId, hg) = Hypergraph.addEdge sig (hypergraph l)
 
 -- | Recompute 'PseudoNode's for the entire Layout.
 -- NOTE: this works by reconnecting every pair of connected ports in the graph,

@@ -17,14 +17,14 @@ data SimpleGen = SimpleGen
 sizeOfSimple SimpleGen = (1,1)
 
 simplePattern :: OpenHypergraph SimpleGen
-simplePattern = Hypergraph conns sigs where
+simplePattern = Hypergraph conns sigs 1 where
   sigs = Map.fromList [(0, SimpleGen)]
   conns = Bimap.fromList
     [ (Port Boundary 0, Port (Gen 0) 0)
     , (Port (Gen 0) 0, Port Boundary 0)
     ]
 
-simpleGraph = Hypergraph conns sigs where
+simpleGraph = Hypergraph conns sigs 2 where
   sigs = Map.fromList [(0, SimpleGen), (1, SimpleGen)]
   conns = Bimap.fromList
     [ (Port Boundary 0, Port (Gen 0) 0)
@@ -40,7 +40,7 @@ data NonConvexGen = One | Two
 sizeOfNonConvex One = (1,1)
 sizeOfNonConvex Two = (2,2)
 
-nonConvexPattern = Hypergraph conns edges
+nonConvexPattern = Hypergraph conns edges 2
   where
     edges = Map.fromList [(0, Two), (1, Two)]
     conns = Bimap.fromList $

@@ -23,6 +23,7 @@ library
                      , Data.Equivalence
   other-modules:       Data.Hypergraph.Type
                      , Data.Hypergraph.Match
+                     , Data.Hypergraph.Rewrite
                      , Data.Hypergraph.Examples
   -- other-extensions:    
   build-depends:       base, array, containers, linear, bimap

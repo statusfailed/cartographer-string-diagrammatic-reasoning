@@ -18,16 +18,16 @@ module Data.Hypergraph.Type
   , empty
   , identity
   , addEdge
+  , deleteEdge
   , connect
   , isConnectedTo
   , source
   , target
   , isComplete
-  -- TODO: remove?
-  , bfs
   ) where
 
 import Data.Foldable
+import Control.Applicative (liftA2)
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -106,8 +106,9 @@ portRole s t p = case toPortRole p of
 -- uniquely by the two Ports they connect. In an 'OpenHypergraph', this
 -- corresponds to having the "Source" port on the Boundary.
 data Hypergraph f sig = Hypergraph
-  { connections :: Bimap (Port Source f) (Port Target f)
-  , signatures  :: Map HyperEdgeId sig
+  { connections     :: Bimap (Port Source f) (Port Target f)
+  , signatures      :: Map HyperEdgeId sig
+  , nextHyperEdgeId :: HyperEdgeId
   }
 
 -- | NOTE: using UndecidableInstances here, but we don't really need it because
@@ -137,6 +138,18 @@ type ClosedHypergraph sig = Hypergraph Identity sig
 data Open a = Boundary | Gen a
   deriving(Eq, Ord, Read, Show)
 
+-- The obvious functor definition
+instance Functor Open where
+  fmap f (Gen x)  = Gen (f x)
+  fmap f Boundary = Boundary
+
+-- This is the same Applicative instance that 'Maybe' has, but it doesnt make a
+-- whole lot of sense to me, even though it seems to be OK...
+instance Applicative Open where
+  pure = Gen
+  liftA2 f (Gen a) (Gen b) = Gen (f a b)
+  liftA2 f _ _ = Boundary
+
 -- | The type of open hypergraphs.
 -- Instead of allowing "dangling wires", we explicitly have 0xN and Mx0
 -- generators for the left and right boundaries for an open hypergraph of type
@@ -158,17 +171,17 @@ instance Signature sig => Signature (OpenHypergraph sig) where
 
 -- | The empty hypergraph
 empty :: Hypergraph Open sig
-empty = Hypergraph Bimap.empty Map.empty
+empty = Hypergraph Bimap.empty Map.empty 0
 
 -- | The identity morphism
 identity :: Hypergraph Open sig
-identity = Hypergraph conns sigs
+identity = Hypergraph conns sigs 0
   where
     conns = Bimap.fromList [(Port Boundary 0, Port Boundary 0)]
     sigs  = Map.empty
 
 -- | the "twist" morphism
-twist = Hypergraph conns Map.empty where
+twist = Hypergraph conns Map.empty 0 where
   conns = Bimap.fromList
     [ (Port Boundary 0, Port Boundary 1)
     , (Port Boundary 1, Port Boundary 0)
@@ -196,12 +209,32 @@ maxBoundaryPorts hg = (n, k)
 -- TODO: don't let user of this module assign the hyperedge ID-
 -- they could easily break the graph (and replace an existing generator, which
 -- might end up with fewer ports, and then weird invalid connections)
-addEdge
-  :: HyperEdgeId -> sig -> Hypergraph f sig -> Hypergraph f sig
-addEdge e sig g = g
-  { connections = connections g -- new edge is unconnected
-  , signatures  = Map.insert e sig (signatures g)
+addEdge :: sig -> Hypergraph f sig -> (HyperEdgeId, Hypergraph f sig)
+addEdge sig g = (curId, g
+  { connections     = connections g -- new edge is unconnected
+  , signatures      = Map.insert curId sig (signatures g)
+  , nextHyperEdgeId = succ curId
+  })
+  where
+    curId  = nextHyperEdgeId g
+
+-- | Delete an edge from a 'Hypergraph'
+deleteEdge
+  :: (Applicative f, Eq (f HyperEdgeId), Ord (f HyperEdgeId))
+  => HyperEdgeId -> Hypergraph f sig -> Hypergraph f sig
+deleteEdge e g = g
+  { connections = removeWiresOf e (connections g)
+  , signatures  = Map.filterWithKey (\k _ -> k /= e) (signatures g)
   }
+  where
+    removeWiresOf e =
+      Bimap.filter (\s t -> not $ s `isPortOf` e || t `isPortOf` e)
+
+-- | 'p `isPortOf` e' returns True if p is a port on the generator e
+isPortOf
+  :: (Eq (f HyperEdgeId), Applicative f)
+  => Port a f -> HyperEdgeId -> Bool
+isPortOf (Port fe _) e = pure e == fe
 
 -- | Connect two ports in the hypergraph.
 -- If the source or target port was already connected to something, that
@@ -248,25 +281,3 @@ isComplete hg = numPorts == 2 * numWires
     numWires = length (Bimap.toList $ connections hg)
     numPorts = foldl (\s (i,o) -> s + i + o) 0 allPorts
     allPorts = toSize hg : fmap toSize (toList $ signatures hg)
-
--------------------------------
--- Operations / Traversals
-
--- | Equivalence class of left ports
-leftPorts :: Hypergraph f sig -> Equivalence (Port Source f) (f HyperEdgeId)
-leftPorts = undefined
-
-bfs'
-  :: OpenHypergraph sig
-  -> ([Port Source Open], [Port Source Open])
-  -> ([Port Source Open], [Port Source Open])
-bfs' = undefined
-
--- | A breadth-first traversal of an OpenHypergraph, yielding all the
--- SOURCE ports in breadth-first order.
--- Additionally, all the ports of each hyperedge will be adjacent in the
--- resulting list.
-bfs :: OpenHypergraph sig -> [Port Source Open]
-bfs hg@(Hypergraph cs _) = undefined
-  where
-    ls = leftPorts hg
