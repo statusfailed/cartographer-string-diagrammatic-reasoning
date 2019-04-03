@@ -210,13 +210,13 @@ maxBoundaryPorts hg = (n, k)
 -- they could easily break the graph (and replace an existing generator, which
 -- might end up with fewer ports, and then weird invalid connections)
 addEdge :: sig -> Hypergraph f sig -> (HyperEdgeId, Hypergraph f sig)
-addEdge sig g = (curId, g
+addEdge sig g = (edgeId, g
   { connections     = connections g -- new edge is unconnected
-  , signatures      = Map.insert curId sig (signatures g)
-  , nextHyperEdgeId = succ curId
+  , signatures      = Map.insert edgeId sig (signatures g)
+  , nextHyperEdgeId = succ edgeId 
   })
   where
-    curId  = nextHyperEdgeId g
+    edgeId = nextHyperEdgeId g
 
 -- | Delete an edge from a 'Hypergraph'
 deleteEdge

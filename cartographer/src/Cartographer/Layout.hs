@@ -70,8 +70,6 @@ data Layout sig = Layout
   -- ^ the underlying hypergraph to be laid out
   , grid       :: Grid (Tile HyperEdgeId) -- previously Grid HyperEdgeId
   -- ^ Position of each HyperEdge in the layout.
-  , nextHyperEdgeId :: HyperEdgeId
-  -- ^ Next free ID to add a HyperEdge.
   } deriving(Eq, Ord, Show)
 
 -- | The empty layout state. An empty hypergraph, nothing positioned, and no
@@ -80,7 +78,6 @@ empty :: Layout sig
 empty = Layout
   { hypergraph      = Hypergraph.empty
   , grid            = Grid.empty
-  , nextHyperEdgeId = 0
   }
 
 -- | Width/Height of the Layout in tiles
@@ -171,9 +168,11 @@ placeGenerator
   -- ^ Where to put it in the grid?
   -> Layout sig
   -> (HyperEdgeId, Layout sig)
-placeGenerator sig pos l = (nextId, recomputePseudoNodes l') where
+placeGenerator sig pos l = (edgeId, recomputePseudoNodes l') where
   dims = Hypergraph.toSize sig
-  nextId = succ edgeId
+  height = Grid.Height (generatorHeight sig)
+  (edgeId, hg) = Hypergraph.addEdge sig (hypergraph l)
+
   l' = Layout
     { hypergraph = hg
     -- Add new edgeId to hypergraph
@@ -181,12 +180,7 @@ placeGenerator sig pos l = (nextId, recomputePseudoNodes l') where
     , grid =
         Grid.placeTile (TileHyperEdge edgeId) height pos (grid l)
     -- Finally, placeTile in Grid to update positions.
-
-    , nextHyperEdgeId = nextId
-    -- Assign new HyperEdgeId and return it
     }
-  height = Grid.Height (generatorHeight sig)
-  (edgeId, hg) = Hypergraph.addEdge sig (hypergraph l)
 
 -- | Recompute 'PseudoNode's for the entire Layout.
 -- NOTE: this works by reconnecting every pair of connected ports in the graph,
