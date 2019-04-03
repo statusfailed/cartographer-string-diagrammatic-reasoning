@@ -70,7 +70,8 @@ copyEdges
   :: Hypergraph f sig
   -> Hypergraph f sig
   -> (Hypergraph f sig, [(HyperEdgeId, HyperEdgeId)])
-copyEdges source target = List.mapAccumL f target $ Map.toList (signatures source)
+copyEdges source target =
+  List.mapAccumL f target $ Map.toList (signatures source)
   where
     f graph (e, sig) = let (e', graph') = addEdge sig graph in (graph', (e, e'))
 
@@ -95,17 +96,19 @@ isBoundary (Port e _) = open True (const False) e
 
 -------------------------------
 -- addRhsConnections
--- translate the connections from the RHS graph into connections to add to the context graph.
+-- translate the connections from the RHS graph into connections to add to the
+-- context graph.
 
 addRhsConnections
   :: OpenHypergraph sig
   -- ^ the rewrite rule\'s RHS
   -> MatchState sig
-  -- ^ the current match state of the RHS, containing matched edges and boundary ports
+  -- ^ the current match state of the RHS, containing matched edges and
+  -- boundary ports
   -> OpenHypergraph sig
   -- ^ the current context graph, containing the (new) RHS edges
   -> (OpenHypergraph sig, MatchState sig)
 addRhsConnections rhs rhsMatching context = undefined
   where
-    conns :: (Port Source Open, Port Target Open)
+    conns :: Bimap (Port Source Open) (Port Target Open)
     conns = connections rhs
