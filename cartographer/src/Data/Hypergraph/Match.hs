@@ -259,13 +259,6 @@ matchAll
   -> m ()
 matchAll = void . mapM matchStep
 
--- | True if all pattern ports have been matched.
-allMatched :: MonadMatch sig m => m Bool
-allMatched = do
-  numMatchedWires <- Bimap.size . _matchStatePortsSource <$> get
-  numPatternWires <- Bimap.size . connections . _matchEnvPattern <$> ask
-  return $ numPatternWires == numMatchedWires
-
 -- | Match a pattern in a context.
 -- Pseudocode:
 --    * Get a list of all source ports by breadth-first traversal of the
@@ -275,7 +268,5 @@ allMatched = do
 match :: Eq sig => OpenHypergraph sig -> OpenHypergraph sig -> [MatchState sig]
 match pattern graph = fmap snd $ runMatch pattern graph (matchAll ps)
   where
+    -- TODO: for efficiency, use bfs instead of arbitrary order?
     ps = Bimap.keys (connections pattern)
-    -- TODO: for efficiency, use bfs.
-    -- Left ports, matched in breadth-first order.
-    ps' = Hypergraph.bfs pattern
