@@ -8,13 +8,15 @@ import qualified Data.Bimap as Bimap
 
 import Data.Hypergraph.Type
 import Data.Hypergraph.Match
+import Data.Hypergraph.Rewrite
 
 -------------------------------
 -- A simple example: two 1x1 generators, matching 
 data SimpleGen = SimpleGen
   deriving(Eq, Ord, Read, Show)
 
-sizeOfSimple SimpleGen = (1,1)
+instance Signature SimpleGen where
+  toSize SimpleGen = (1,1)
 
 simplePattern :: OpenHypergraph SimpleGen
 simplePattern = Hypergraph conns sigs 1 where
@@ -24,6 +26,8 @@ simplePattern = Hypergraph conns sigs 1 where
     , (Port (Gen 0) 0, Port Boundary 0)
     ]
 
+simpleRhs = identity
+
 simpleGraph = Hypergraph conns sigs 2 where
   sigs = Map.fromList [(0, SimpleGen), (1, SimpleGen)]
   conns = Bimap.fromList
@@ -31,6 +35,10 @@ simpleGraph = Hypergraph conns sigs 2 where
     , (Port (Gen 0)  0, Port (Gen 1) 0)
     , (Port (Gen 1)  0, Port Boundary 0)
     ]
+
+simpleRewrite =
+  let [m1, m2] = match simplePattern simpleGraph
+  in  rewrite m1 simpleRhs simpleGraph
 
 -------------------------------
 -- The paper's non-convex matching example

@@ -35,7 +35,7 @@ rewrite
 rewrite lhsMatch rhs context = (c, rhsMatch2)
   where
     a              = removeLhsEdges lhsMatch context
-    (b, rhsMatch1) = addRhsEdges rhs context
+    (b, rhsMatch1) = addRhsEdges rhs a
     rhsMatch2      = addBoundaries lhsMatch rhsMatch1
     c              = addRhsConnections rhs rhsMatch2 b
 
