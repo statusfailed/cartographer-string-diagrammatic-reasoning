@@ -18,6 +18,7 @@ import Cartographer.Viewer (ViewerOptions(..), Generator(..), RawAction(..))
 import qualified Cartographer.Viewer as Viewer
 
 import qualified Cartographer.Editor as Editor
+import qualified Cartographer.Components.GeneratorEditor as GeneratorEditor
 
 import Debug.Trace (traceShow)
 
@@ -55,14 +56,18 @@ testLayout = runOps operations
 -- Miso code
 
 data Model = Model
-  { editor :: Editor.Model
+  { editor    :: Editor.Model
+  , generator :: Generator
   } deriving(Eq, Ord, Show)
 
 {-emptyModel = Model (Editor.emptyModel { Editor._modelLayout = testLayout })-}
-emptyModel = Model Editor.emptyModel
+emptyModel = Model Editor.emptyModel copy
 
 -- | Sum type for application events
-data Action = NoOp | EditorAction Editor.Action
+data Action
+  = NoOp
+  | EditorAction Editor.Action
+  | GeneratorEditorAction GeneratorEditor.Action
   deriving (Eq, Ord, Read, Show)
 
 -- | Entry point for a miso application
@@ -79,10 +84,16 @@ main = do
     mountPoint = Nothing
 
 updateModel :: Action -> Model -> Effect Action Model
-updateModel action m@(Model editor) = case action of
+updateModel action m@(Model editor g) = case action of
   NoOp -> return m
   EditorAction a ->
-    traceShow a . traceShow m . return $ Model (Editor.update a editor)
+    traceShow a . traceShow m . return $ m { editor = Editor.update a editor }
+  GeneratorEditorAction ga -> return $   m { generator = GeneratorEditor.update ga g }
 
 viewModel :: Model -> View Action
-viewModel (Model editor) = EditorAction <$> Editor.view bialgebra editor
+viewModel (Model editor g) = Miso.div_ []
+  [ Miso.h1_ [] ["cartographer"]
+  , GeneratorEditorAction <$> GeneratorEditor.view g
+  , Miso.h1_ [] ["editor"]
+  , EditorAction <$> Editor.view bialgebra editor
+  ]

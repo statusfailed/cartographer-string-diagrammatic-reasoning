@@ -143,7 +143,7 @@ viewPseudoNode _ pos (ViewerOptions tileSize) = connectorWith "red" start end
 -- View a Position-annotated generator
 -- Generic drawing:
 --    * black outline of total area
---    * vertically-centered circle (according to tileHeight)
+--    * vertically-centered circle (according to generatorHeight)
 --    * Symmetric bezier wires to circle from each port
 viewGenerator
   :: Generator
@@ -154,7 +154,7 @@ viewGenerator g@(Generator size ports color name) pos' (ViewerOptions tileSize)
   = 
   let pos = pos' * (V2 2 1)
       unitSize = fromIntegral tileSize
-      height = unitSize * fromIntegral (tileHeight g) :: Double
+      height = unitSize * fromIntegral (Layout.generatorHeight g) :: Double
       width  = unitSize
       v@(V2 x y) = fmap ((*unitSize) . fromIntegral) pos
 

@@ -31,15 +31,16 @@ instance Signature Generator where
   toSize = size
 
 instance Layout.Generator Generator where
-  generatorHeight  = tileHeight
+  generatorHeight  = uncurry tileHeight . size
   generatorInputs  = fst . ports
   generatorOutputs = snd . ports
 
 -- | Height (in tiles) of the generator.
--- TODO: explain this better.
+-- This is picked as the smallest odd number greater than the max number of
+-- inputs or outputs.
 -- A generator of size (2,1) will have total height 3, so it looks symmetric.
-tileHeight (Generator (l, r) _ _ _) = max l r + modifier
-  where modifier = if l == 0 || r == 0 then 0 else mod (l+r) 2
+tileHeight :: Int -> Int -> Int
+tileHeight l r = let m = max l r in if even m then m + 1 else m
 
 -------------------------------
 -- Actions that can happen in the Viewer
