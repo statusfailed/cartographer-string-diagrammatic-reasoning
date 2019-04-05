@@ -62,5 +62,5 @@ insertSpacedCoordinates
 insertSpacedCoordinates g v@(V2 0 _) = id -- TODO: still ignore left boundary?
 insertSpacedCoordinates g v@(V2 x _) = snd . Layout.placeGenerator g v' . f
   where
-    f = if odd x then Layout.insertLayer (Layout.Layer x') else id
+    f = if odd x then Layout.insertLayer (Layout.Layer x') 1 else id
     v'@(V2 x' _) = spacedToExtended (v - V2 1 0)

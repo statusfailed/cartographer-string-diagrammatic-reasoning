@@ -9,7 +9,7 @@ import Miso.Subscription.Keyboard (arrowsSub, Arrows(..))
 import Cartographer.Layout (Layout)
 import qualified Cartographer.Layout as Layout
 
-import Data.Hypergraph (Hypergraph, Open(..))
+import Data.Hypergraph (Hypergraph, Open(..), Port(..))
 import qualified Data.Hypergraph as Hypergraph
 
 import Linear.V2 (V2(..))
@@ -51,6 +51,25 @@ operations =
   ]
 
 testLayout = runOps operations
+
+testLHS = runOps
+  [ snd . Layout.placeGenerator copy (V2 0 0)
+  , snd . Layout.placeGenerator counit (V2 1 0)
+  , Layout.connectPorts (Port Boundary 0) (Port (Gen 0) 0)
+  , Layout.connectPorts (Port (Gen 0) 1) (Port Boundary 0)
+  , Layout.connectPorts (Port (Gen 0) 0) (Port (Gen 1) 0)
+  ]
+
+-- identity
+testRHS = runOps [ Layout.connectPorts (Port Boundary 0) (Port Boundary 0) ]
+
+testRule = (testLHS, testRHS)
+
+testContext = testLHS
+
+[testMatch] = Hypergraph.match (Layout.hypergraph testLHS) (Layout.hypergraph testContext)
+
+testRewritten = fst $ Layout.rewriteLayout testMatch testRHS testContext
 
 -------------------------------
 -- Miso code
@@ -96,4 +115,7 @@ viewModel (Model editor g) = Miso.div_ []
   , GeneratorEditorAction <$> GeneratorEditor.view g
   , Miso.h1_ [] ["editor"]
   , EditorAction <$> Editor.view bialgebra editor
+  , Miso.h1_ [] ["rewritten"]
+  , const NoOp   <$> Viewer.view testContext (ViewerOptions 25)
+  , const NoOp   <$> Viewer.view testRewritten (ViewerOptions 25)
   ]

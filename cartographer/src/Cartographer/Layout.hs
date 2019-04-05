@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS -Wall #-}
 -- | The main interface for editing a Hypergraph via a UI.
 -- the 'Layout' type includes position and pseudonode information for each
 -- hyperedgein the graph, and provides methods for safely making changes to the underlying graph.
@@ -7,13 +8,11 @@
 -- /This module is intended to be imported qualified./
 module Cartographer.Layout where
 
-import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Data.Map.Strict (Map, (!), (!?))
+import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
-import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
 import Linear.V2
@@ -22,8 +21,8 @@ import Data.Maybe (catMaybes)
 import Control.Monad (liftM2)
 
 import Data.Hypergraph
-  ( Hypergraph, Port(..), PortRole(..), Open(..), Source, Target
-  , OpenHypergraph(..), HyperEdgeId(..)
+  ( Port(..), PortRole(..), Open(..), Source, Target
+  , OpenHypergraph, HyperEdgeId(..)
   , MatchState(..)
   , boundaryPorts
   )
@@ -31,9 +30,6 @@ import qualified Data.Hypergraph as Hypergraph
 
 import Cartographer.Types.Grid (Grid, Position)
 import qualified Cartographer.Types.Grid as Grid
-
-import Data.Equivalence (Equivalence)
-import qualified Data.Equivalence as Equivalence
 
 import Data.Reflection
 
@@ -63,6 +59,9 @@ data Tile a
   = TileHyperEdge a
   | TilePseudoNode PseudoNode
   deriving(Eq, Ord, Read, Show)
+
+isPseudoTile (TilePseudoNode _) = True
+isPseudoTile _ = False
 
 -- | a 'Hypergraph' plus the additional information needed to display it laid
 -- out in 2D.
@@ -101,7 +100,7 @@ lookup v@(V2 x y) layout
       case tilesAsList <$> Grid.lookup v' (grid layout) of
         Nothing                    -> (Nothing, Nothing)
         Just (TilePseudoNode _, _) -> (Nothing, Nothing)
-        Just (TileHyperEdge e, []) -> (Nothing, Nothing) -- this is really a bug
+        Just (TileHyperEdge _, []) -> (Nothing, Nothing) -- this is really a bug
         Just (TileHyperEdge e, vs) -> offsetToPorts e (tileOffset v vs) layout
   where
     V2 w _ = dimensions layout
@@ -122,7 +121,7 @@ portOffset
   => Port a Open
   -> Layout sig
   -> Maybe Int
-portOffset (Port Boundary i) layout = Just i
+portOffset (Port Boundary i) _ = Just i
 portOffset p@(Port (Gen e) i) layout = do
   sig <- signature e layout
   f sig
@@ -171,7 +170,6 @@ placeGenerator
   -> Layout sig
   -> (HyperEdgeId, Layout sig)
 placeGenerator sig pos l = (edgeId, recomputePseudoNodes l') where
-  dims = Hypergraph.toSize sig
   height = Grid.Height (generatorHeight sig)
   (edgeId, hg) = Hypergraph.addEdge sig (hypergraph l)
 
@@ -306,11 +304,11 @@ generatorPosition
   -> Layout sig
   -> Maybe Position
 generatorPosition p l = case p of
-  Port Boundary i -> return (V2 bx 0) -- bx depends on port role
-  Port (Gen e) i  -> fmap (+ V2 1 0) . Grid.positionOf (TileHyperEdge e) $ g
+  Port Boundary _ -> return (V2 bx 0) -- bx depends on port role
+  Port (Gen e) _  -> fmap (+ V2 1 0) . Grid.positionOf (TileHyperEdge e) $ g
   where
     g       = grid l
-    V2 w h  = Grid.dimensions g
+    V2 w _  = Grid.dimensions g
     bx      = if Hypergraph.toPortRole p == Source then 0 else w + 1
 
 -- | Position of the boundary filling the same role as this port.  i.e., if "a"
@@ -318,7 +316,7 @@ generatorPosition p l = case p of
 boundaryPosition :: PortRole -> Int -> Layout sig -> Position
 boundaryPosition role i l = V2 bx i
   where
-    V2 w h  = Grid.dimensions (grid l)
+    V2 w _  = Grid.dimensions (grid l)
     bx = if role == Source then 0 else w + 1
 
 -- | Calculate the integer-grid coordinates of a *port*, rather than its
@@ -330,7 +328,7 @@ portPosition
   -> Maybe Position
 portPosition p@(Port Boundary i) l = return (boundaryPosition role i l)
   where role = Hypergraph.toPortRole p
-portPosition p@(Port (Gen e) i) l = do
+portPosition p@(Port (Gen _) _) l = do
   pos <- generatorPosition p l
   offset <- portOffset p l
   return $ pos + V2 0 offset
@@ -349,7 +347,7 @@ layersBetween s t l
   = getX <$> liftM2 f (generatorPosition t l) (generatorPosition s l)
   where
     getX (V2 x _) = x
-    f t s = t - s - 1 -- "between" means layers not occupied by either tile.
+    f a b = a - b - 1 -- "between" means layers not occupied by either tile.
 
 -- | Insert a new Layer, corresponding to a new column, at a given position.
 insertLayer
@@ -376,30 +374,37 @@ insertLayer x n layout
 -- to a new origin. Specifically:
 --      x: maximum x coordinate of all left-boundary ports
 --      y: minimum y coordinate of *all* boundary ports
+--
+-- p.s. this function is horrifying. sorry about that.
 rewriteLayout
   :: Generator  sig
   => MatchState sig -- ^ a matching of the LHS of a rule in the context
   -> Layout sig     -- ^ the rule\'s RHS
   -> Layout sig     -- ^ the context which the matching took place in
   -> (Layout sig, MatchState sig) -- ^ rewritten context + match for rewrite
-rewriteLayout lhsMatch rhs context = (context' { grid = grid' }, rhsMatch)
+rewriteLayout lhsMatch rhs context = (recomputePseudoNodes $ context
+  { hypergraph = hypergraph'
+  , grid       = cleanupPseudos . cleanupLHS $ grid'
+  }, rhsMatch)
   where
     -- first rewrite the hypergraph:
     (hypergraph', rhsMatch) =
       Hypergraph.rewrite lhsMatch (hypergraph rhs) (hypergraph context)
 
-    -- now, update the context, and make space in its grid for the RHS pattern
-    context' = context
-      { hypergraph = hypergraph'
-      , grid = Grid.shiftLayer x n (grid context)
-      }
+    -- 1) update the context, and make space in its grid for the RHS pattern
+    -- 2) add all the edges from the RHS into the context's grid.
+    grid' = foldr place (Grid.shiftLayer x n (grid context)) (catMaybes xs)
 
-    -- finally, add all the edges from the RHS into the context's grid.
-    grid' = foldr place (grid context') (catMaybes xs)
+    -- remove all LHS hyperedges and pseudos from the grid
+    cleanupLHS g = foldr Grid.removeTile g $
+      fmap (TileHyperEdge . snd) . Bimap.toList . _matchStateEdges $ lhsMatch
+    cleanupPseudos g =
+      foldr Grid.removeTile g (filter isPseudoTile . fmap fst . Grid.toList $ g)
+
     place (e, sig, pos) =
       Grid.placeTile (TileHyperEdge e) (Grid.Height $ generatorHeight sig) pos
     edges = Map.toList (Hypergraph.signatures hypergraph')
-    xs = fmap (copyEdgePosition rhsMatch rhs context' translate) edges
+    xs = fmap (copyEdgePosition rhsMatch rhs translate) edges
 
     -- TODO: get y as minimum y coord of ALL boundary ports.
     translate = V2 x 0
@@ -407,11 +412,11 @@ rewriteLayout lhsMatch rhs context = (context' { grid = grid' }, rhsMatch)
 
     -- the maximum "Left boundary" coordinate
     maxL
-      = maxBoundary (grid context') . fmap snd . boundaryPorts
+      = maxBoundary (grid context) . fmap fst . boundaryPorts
       $ _matchStatePortsSource rhsMatch
 
     minR
-      = minBoundary (grid context') . fmap snd . boundaryPorts
+      = minBoundary (grid context) . fmap fst . boundaryPorts
       $ _matchStatePortsTarget $ rhsMatch
 
     (V2 n _) = minR - maxL
@@ -421,11 +426,10 @@ copyEdgePosition
   :: Generator sig
   => MatchState sig
   -> Layout sig
-  -> Layout sig
   -> V2 Int
   -> (HyperEdgeId, sig)
   -> Maybe (HyperEdgeId, sig, Position)
-copyEdgePosition rhsMatch rhs context translate (e, sig) = do
+copyEdgePosition rhsMatch rhs translate (e, sig) = do
   e'  <- Bimap.lookup e (_matchStateEdges rhsMatch)
   pos <- (+translate) <$> Grid.positionOf (TileHyperEdge e) (grid rhs)
   return (e', sig, pos)
@@ -433,21 +437,21 @@ copyEdgePosition rhsMatch rhs context translate (e, sig) = do
 
 -- | Find the maximum position of a list of ports in a Grid.
 maxBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Position
-maxBoundary grid =
-  maybe 0 id . safe maximum . catMaybes . fmap (portGridPosition grid)
+maxBoundary g =
+  maybe 0 id . safe maximum . catMaybes . fmap (portGridPosition g)
 
 -- | Find the minimum position of a list of ports in a Grid.
 minBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Position
-minBoundary grid =
-  maybe v id . safe minimum . catMaybes . fmap (portGridPosition grid)
-  where v = Grid.dimensions grid
+minBoundary g =
+  maybe v id . safe minimum . catMaybes . fmap (portGridPosition g)
+  where v = Grid.dimensions g
 
 portGridPosition :: Grid (Tile HyperEdgeId) -> Port a Open -> Maybe Position
-portGridPosition grid (Port Boundary _) = Nothing
-portGridPosition grid (Port (Gen e) _)  = Grid.positionOf (TileHyperEdge e) grid
+portGridPosition _ (Port Boundary _) = Nothing
+portGridPosition g (Port (Gen e) _)  = Grid.positionOf (TileHyperEdge e) g
 
 safe :: ([a] -> b) -> [a] -> Maybe b
-safe f [] = Nothing
+safe _ [] = Nothing
 safe f xs = Just (f xs)
 
 
@@ -460,7 +464,4 @@ safe f xs = Just (f xs)
 -- layer x.
 -- If L(e) >= x, then disconnect e from p.
 move :: HyperEdgeId -> Position -> Layout sig -> Layout sig
-move e p s = undefined
-
--- TODO post-mvp
-removeBoundaryNode = undefined
+move _ _ _ = undefined

@@ -25,6 +25,7 @@ library
                      , Data.Hypergraph.Match
                      , Data.Hypergraph.Rewrite
                      , Data.Hypergraph.Examples
+                     , Cartographer.Example
   -- other-extensions:    
   build-depends:       base, array, containers, linear, bimap
                      , mtl, logict, reflection

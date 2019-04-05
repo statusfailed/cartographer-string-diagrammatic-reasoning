@@ -11,7 +11,7 @@ import Data.Hypergraph.Match
 import Data.Hypergraph.Rewrite
 
 -------------------------------
--- A simple example: two 1x1 generators, matching 
+-- A simple example: two 1x1 generators, matching
 data SimpleGen = SimpleGen
   deriving(Eq, Ord, Read, Show)
 
@@ -39,6 +39,14 @@ simpleGraph = Hypergraph conns sigs 2 where
 simpleRewrite =
   let [m1, m2] = match simplePattern simpleGraph
   in  rewrite m1 simpleRhs simpleGraph
+
+-- if we apply a rewrite rule forwards then backwards, we should get back the
+-- same graph (modulo IDs) - meaning the twice-applied rule graph should match
+-- in the zero-applied rule graph exactly once.
+invertRewrite =
+  let (g, m') = simpleRewrite
+      (g', _) = rewrite m' simplePattern g
+  in  length (match g' simpleGraph) == 1
 
 -------------------------------
 -- The paper's non-convex matching example
