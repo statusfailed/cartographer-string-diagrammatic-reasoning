@@ -60,6 +60,7 @@ data Tile a
   | TilePseudoNode PseudoNode
   deriving(Eq, Ord, Read, Show)
 
+isPseudoTile :: Tile a -> Bool
 isPseudoTile (TilePseudoNode _) = True
 isPseudoTile _ = False
 
@@ -107,7 +108,7 @@ lookup v@(V2 x y) layout
     v' = v - V2 1 0 -- lose the left boundary for "Grid" space coordinates.
 
     tilesAsList (a, s) = (a, Set.toList s)
-    tileOffset v vs = let (V2 _ y) = v - minimum vs in y
+    tileOffset u us = let (V2 _ dy) = u - minimum us in dy
 
 signature :: HyperEdgeId -> Layout sig -> Maybe sig
 signature e = Map.lookup e . Hypergraph.signatures . hypergraph
@@ -187,7 +188,7 @@ placeGenerator sig pos l = (edgeId, recomputePseudoNodes l') where
 --       which ensures that all pseudonodes exist.
 -- TODO FIXME: this is super slow and hacky! Be a bit more intelligent about
 --             which connections to reconnect!
-recomputePseudoNodes :: Layout sig -> Layout sig
+recomputePseudoNodes :: Generator sig => Layout sig -> Layout sig
 recomputePseudoNodes l = foldr (uncurry connectPorts) l wires
   where wires = (Bimap.toList . Hypergraph.connections . hypergraph $ l)
 
@@ -202,7 +203,8 @@ recomputePseudoNodes l = foldr (uncurry connectPorts) l wires
 -- inserted into the grid.
 {-# WARNING connectPorts "partial function" #-}
 connectPorts
-  :: Port Source Open
+  :: Generator sig
+  => Port Source Open
   -- ^ Source port
   -> Port Target Open
   -- ^ Target port
@@ -226,7 +228,7 @@ connectPorts s t layout
 
     -- TODO: this should be portPosition if we want the pseudo to appear at the
     -- same y-coordinate as the port.
-    base l = maybe err id (generatorPosition s l)
+    base l = maybe err id (portPosition s l)
       where err = error $ "connectPorts: lookup error " ++ show s
 
     addPseudo pn@(PseudoNode _ _ i) l = addPseudoNode pn (base l + offset) l
@@ -359,7 +361,10 @@ insertLayer x n layout
   = layout { grid = Grid.shiftLayer (unLayer x) n (grid layout) }
 
 -------------------------------
--- Rewriting helpers
+-- Matching & Rewriting helpers
+
+matchLayout :: Eq sig => Layout sig -> Layout sig -> [MatchState sig]
+matchLayout pattern graph = Hypergraph.match (hypergraph pattern) (hypergraph graph)
 
 -- | Apply a rewrite rule on Layouts, attempting to preserve as much of the
 -- geometry of the RHS of the rule as possible.
@@ -376,6 +381,7 @@ insertLayer x n layout
 --      y: minimum y coordinate of *all* boundary ports
 --
 -- p.s. this function is horrifying. sorry about that.
+-- this really really really needs refactoring
 rewriteLayout
   :: Generator  sig
   => MatchState sig -- ^ a matching of the LHS of a rule in the context
@@ -393,9 +399,10 @@ rewriteLayout lhsMatch rhs context = (recomputePseudoNodes $ context
 
     -- 1) update the context, and make space in its grid for the RHS pattern
     -- 2) add all the edges from the RHS into the context's grid.
-    grid' = foldr place (Grid.shiftLayer x n (grid context)) (catMaybes xs)
+    grid' = foldr place (Grid.shiftLayer shiftX n $ grid context) (catMaybes xs)
 
-    -- remove all LHS hyperedges and pseudos from the grid
+    -- remove all LHS hyperedges and pseudos from the grid- pseudos recomputed
+    -- shortly.
     cleanupLHS g = foldr Grid.removeTile g $
       fmap (TileHyperEdge . snd) . Bimap.toList . _matchStateEdges $ lhsMatch
     cleanupPseudos g =
@@ -406,20 +413,28 @@ rewriteLayout lhsMatch rhs context = (recomputePseudoNodes $ context
     edges = Map.toList (Hypergraph.signatures hypergraph')
     xs = fmap (copyEdgePosition rhsMatch rhs translate) edges
 
-    -- TODO: get y as minimum y coord of ALL boundary ports.
-    translate = V2 x 0
-    V2 x _ = maxL
+    -- how much to translate each generator from the RHS pattern to the context
+    translate = (maybe 0 (+1) maxL) * V2 1 0
+
+    -- shift from right upwards, because its the lowest point guaranteed not to
+    -- have a left boundary in the same layer.
+    V2 shiftX _ = translate
 
     -- the maximum "Left boundary" coordinate
     maxL
-      = maxBoundary (grid context) . fmap fst . boundaryPorts
+      = maxBoundary (grid context) . fmap snd . boundaryPorts
       $ _matchStatePortsSource rhsMatch
 
+    -- the minimum "right boundary" coordinate
     minR
-      = minBoundary (grid context) . fmap fst . boundaryPorts
+      = minBoundary (grid context) . fmap snd . boundaryPorts
       $ _matchStatePortsTarget $ rhsMatch
 
-    (V2 n _) = minR - maxL
+    -- number of layers to insert
+    -- TODO: be smarter about this- we don't always need to insert layers,
+    -- e.g., if minR was the right boundary.
+    n = rhsWidth
+    V2 rhsWidth _ = Grid.dimensions (grid rhs)
 
 -- ???
 copyEdgePosition
@@ -436,15 +451,12 @@ copyEdgePosition rhsMatch rhs translate (e, sig) = do
 
 
 -- | Find the maximum position of a list of ports in a Grid.
-maxBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Position
-maxBoundary g =
-  maybe 0 id . safe maximum . catMaybes . fmap (portGridPosition g)
+maxBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Maybe Position
+maxBoundary g = safe maximum . catMaybes . fmap (portGridPosition g)
 
 -- | Find the minimum position of a list of ports in a Grid.
-minBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Position
-minBoundary g =
-  maybe v id . safe minimum . catMaybes . fmap (portGridPosition g)
-  where v = Grid.dimensions g
+minBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Maybe Position
+minBoundary g = safe minimum . catMaybes . fmap (portGridPosition g)
 
 portGridPosition :: Grid (Tile HyperEdgeId) -> Port a Open -> Maybe Position
 portGridPosition _ (Port Boundary _) = Nothing

@@ -17,6 +17,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Cartographer.Layout
+                     , Cartographer.Proof
                      , Cartographer.Draw
                      , Cartographer.Types.Grid
                      , Data.Hypergraph

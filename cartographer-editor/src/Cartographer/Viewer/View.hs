@@ -110,7 +110,7 @@ gridLines unitSize (V2 width height) =
     vline x = Svg.line_ ([ Svg.y1_ "0", Svg.y2_ (ms height)
                          , Svg.x1_ (ms x), Svg.x2_ (ms x) ] ++ displayOpts) []
 
-    displayOpts = [ Svg.stroke_ "#eeeeee", Svg.strokeDasharray_ "5,5" ]
+    displayOpts = [ Svg.stroke_ "#cccccc", Svg.strokeDasharray_ "5,5" ]
 
 -- | Draw an invisible SVG rect, one for each grid square, so we can assign a
 -- custom 'onClick' to each, and react when user clicks one.
