@@ -384,14 +384,14 @@ rewriteLayout
   -> (Layout sig, MatchState sig) -- ^ rewritten context + match for rewrite
 rewriteLayout lhsMatch rhs context = (context' { grid = grid' }, rhsMatch)
   where
-    -- first rewrite the hypergraph: 
+    -- first rewrite the hypergraph:
     (hypergraph', rhsMatch) =
       Hypergraph.rewrite lhsMatch (hypergraph rhs) (hypergraph context)
 
     -- now, update the context, and make space in its grid for the RHS pattern
     context' = context
       { hypergraph = hypergraph'
-      , grid = Grid.shiftLayer x n (grid context) 
+      , grid = Grid.shiftLayer x n (grid context)
       }
 
     -- finally, add all the edges from the RHS into the context's grid.
@@ -403,7 +403,7 @@ rewriteLayout lhsMatch rhs context = (context' { grid = grid' }, rhsMatch)
 
     -- TODO: get y as minimum y coord of ALL boundary ports.
     translate = V2 x 0
-    V2 x _ = maxL 
+    V2 x _ = maxL
 
     -- the maximum "Left boundary" coordinate
     maxL
