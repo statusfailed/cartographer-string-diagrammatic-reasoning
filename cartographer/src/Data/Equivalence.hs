@@ -30,6 +30,9 @@ null (Equivalence cls ms) = Map.null cls && Map.null ms
 fromList :: (Ord c, Ord a) => [(a,c)] -> Equivalence a c
 fromList = foldr (uncurry equate) empty
 
+toClasses :: Equivalence a c -> [(c, Set a)]
+toClasses (Equivalence _ members) = Map.toList members
+
 -- Merge two equivalences.
 -- This is right-biased, so if an element 'a' appears in both the left and
 -- right equivalences, the right equivalence's class will be taken.

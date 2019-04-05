@@ -24,6 +24,8 @@ import Control.Monad (liftM2)
 import Data.Hypergraph
   ( Hypergraph, Port(..), PortRole(..), Open(..), Source, Target
   , OpenHypergraph(..), HyperEdgeId(..)
+  , MatchState(..)
+  , boundaryPorts
   )
 import qualified Data.Hypergraph as Hypergraph
 
@@ -349,17 +351,105 @@ layersBetween s t l
     getX (V2 x _) = x
     f t s = t - s - 1 -- "between" means layers not occupied by either tile.
 
-
--------------------------------
--- TODO
-
 -- | Insert a new Layer, corresponding to a new column, at a given position.
 insertLayer
   :: Layer -- ^ X coordinate of layer to insert
+  -> Int   -- ^ Number of layers to insert
   -> Layout sig
   -> Layout sig
-insertLayer x layout
-  = layout { grid = Grid.shiftLayer (unLayer x) 1 (grid layout) }
+insertLayer x n layout
+  = layout { grid = Grid.shiftLayer (unLayer x) n (grid layout) }
+
+-------------------------------
+-- Rewriting helpers
+
+-- | Apply a rewrite rule on Layouts, attempting to preserve as much of the
+-- geometry of the RHS of the rule as possible.
+--
+-- The general idea is that we place the RHS between its two boundaries.
+-- However, there may not be enough room- for example if we're rewriting the
+-- identity diagram to some non-zero-width diagram.
+-- So first, we make space by inserting the required number of layers, then we
+-- insert the generators one by one.
+--
+-- We also need to translate the RHS positions from their origin at (0,0)
+-- to a new origin. Specifically:
+--      x: maximum x coordinate of all left-boundary ports
+--      y: minimum y coordinate of *all* boundary ports
+rewriteLayout
+  :: Generator  sig
+  => MatchState sig -- ^ a matching of the LHS of a rule in the context
+  -> Layout sig     -- ^ the rule\'s RHS
+  -> Layout sig     -- ^ the context which the matching took place in
+  -> (Layout sig, MatchState sig) -- ^ rewritten context + match for rewrite
+rewriteLayout lhsMatch rhs context = (context' { grid = grid' }, rhsMatch)
+  where
+    -- first rewrite the hypergraph: 
+    (hypergraph', rhsMatch) =
+      Hypergraph.rewrite lhsMatch (hypergraph rhs) (hypergraph context)
+
+    -- now, update the context, and make space in its grid for the RHS pattern
+    context' = context
+      { hypergraph = hypergraph'
+      , grid = Grid.shiftLayer x n (grid context) 
+      }
+
+    -- finally, add all the edges from the RHS into the context's grid.
+    grid' = foldr place (grid context') (catMaybes xs)
+    place (e, sig, pos) =
+      Grid.placeTile (TileHyperEdge e) (Grid.Height $ generatorHeight sig) pos
+    edges = Map.toList (Hypergraph.signatures hypergraph')
+    xs = fmap (copyEdgePosition rhsMatch rhs context' translate) edges
+
+    -- TODO: get y as minimum y coord of ALL boundary ports.
+    translate = V2 x 0
+    V2 x _ = maxL 
+
+    -- the maximum "Left boundary" coordinate
+    maxL
+      = maxBoundary (grid context') . fmap snd . boundaryPorts
+      $ _matchStatePortsSource rhsMatch
+
+    minR
+      = minBoundary (grid context') . fmap snd . boundaryPorts
+      $ _matchStatePortsTarget $ rhsMatch
+
+    (V2 n _) = minR - maxL
+
+-- ???
+copyEdgePosition
+  :: Generator sig
+  => MatchState sig
+  -> Layout sig
+  -> Layout sig
+  -> V2 Int
+  -> (HyperEdgeId, sig)
+  -> Maybe (HyperEdgeId, sig, Position)
+copyEdgePosition rhsMatch rhs context translate (e, sig) = do
+  e'  <- Bimap.lookup e (_matchStateEdges rhsMatch)
+  pos <- (+translate) <$> Grid.positionOf (TileHyperEdge e) (grid rhs)
+  return (e', sig, pos)
+
+
+-- | Find the maximum position of a list of ports in a Grid.
+maxBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Position
+maxBoundary grid =
+  maybe 0 id . safe maximum . catMaybes . fmap (portGridPosition grid)
+
+-- | Find the minimum position of a list of ports in a Grid.
+minBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Position
+minBoundary grid =
+  maybe v id . safe minimum . catMaybes . fmap (portGridPosition grid)
+  where v = Grid.dimensions grid
+
+portGridPosition :: Grid (Tile HyperEdgeId) -> Port a Open -> Maybe Position
+portGridPosition grid (Port Boundary _) = Nothing
+portGridPosition grid (Port (Gen e) _)  = Grid.positionOf (TileHyperEdge e) grid
+
+safe :: ([a] -> b) -> [a] -> Maybe b
+safe f [] = Nothing
+safe f xs = Just (f xs)
+
 
 -------------------------------
 -- Post-MVP functionality

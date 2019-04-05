@@ -19,12 +19,12 @@ import qualified Data.Map.Strict as Map
 -- 1) Remove any edges in context that are part of the matching
 --  - this also removes any wires with those edges
 -- 2) Add in the /edges/ of the RHS, and keep track of the correspondence
---    "RHS ID <-> Context ID" in a MatchState
+--    "RHS ID <-> Context ID" in a MatchState.
+--    (Also add in the ports of each edge)
 -- 3) Add every boundary port in the LHS MatchState, to the RHS MatchState, i.e.
 --    - if LHS has L_j -> e_i, then RHS has L_0 -> e_i
 --    - if LHS has e_i -> R_j, then RHS has e_i -> R_j
--- 4) Add in all the non-boundary ports of RHS, by replacing generator IDs with
---    those in their match states
+-- 4) Use the matching to add wires from the RHS into the Context
 rewrite
   :: Signature sig
   => MatchState sig     -- ^ Matched pattern
@@ -145,6 +145,8 @@ translateWire m s t = liftM2 (,) s' t'
 insertAll :: (Ord a, Ord b) => Bimap a b -> [(a, b)] -> Bimap a b
 insertAll = foldr (uncurry Bimap.insert)
 
+-- TODO: rename this- it means "ports which are boundaries in the pattern but
+-- not necessarily the context"
 boundaryPorts :: Bimap (Port a Open) (Port a Open) -> [(Port a Open, Port a Open)]
 boundaryPorts = Bimap.toList . Bimap.filter (\x _ -> isBoundary x)
 

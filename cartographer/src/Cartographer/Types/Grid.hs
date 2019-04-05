@@ -135,6 +135,9 @@ positionOf tile grid =
   let s = Equivalence.membersOf tile (_gridPositions grid)
   in  if Set.null s then Nothing else Just . minimum $ Set.toList s
 
+toList :: Ord tile => Grid tile -> [(tile, Set Position)]
+toList (Grid eq) = Equivalence.toClasses eq
+
 -- | Return the tile for a given position, along with the set of tiles it
 -- occupies.
 lookup :: Ord tile => Position -> Grid tile -> Maybe (tile, Set Position)
