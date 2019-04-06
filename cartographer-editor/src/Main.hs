@@ -25,7 +25,7 @@ import qualified Cartographer.Editor as Editor
 import qualified Cartographer.Components.GeneratorEditor as GeneratorEditor
 import qualified Cartographer.Components.ProofAssistant as ProofAssistant
 
-import Cartographer.UI ()
+import qualified Cartographer.UI as UI
 
 -- TODO: get rid of this :D
 import Debug.Trace (traceShow)
@@ -87,18 +87,20 @@ theory = Proof.Theory (Set.fromList [copy, counit]) rules
 -- Miso code
 
 data Model = Model
-  { editor          :: Editor.Model
+  { ui              :: UI.Model
+  , editor          :: Editor.Model
   , generator       :: Generator
   , proofAssistant  :: ProofAssistant.Model
   } deriving(Eq, Ord, Show)
 
 {-emptyModel = Model (Editor.emptyModel { Editor._modelLayout = testLayout })-}
-emptyModel = Model Editor.emptyModel copy proofAssistant
+emptyModel = Model UI.emptyModel Editor.emptyModel copy proofAssistant
   where (Just proofAssistant) = ProofAssistant.newModel testLHS
 
 -- | Sum type for application events
 data Action
   = NoOp
+  | UIAction UI.Action
   | EditorAction Editor.Action
   | GeneratorEditorAction GeneratorEditor.Action
   | ProofAssistantAction ProofAssistant.Action
@@ -118,16 +120,21 @@ main = do
     mountPoint = Nothing
 
 updateModel :: Action -> Model -> Effect Action Model
-updateModel action m@(Model editor g p) = case action of
+updateModel action m@(Model ui editor g p) = case action of
   NoOp -> return m
+  UIAction a ->
+    return $ Model (UI.update a ui) editor g p
   EditorAction a ->
     traceShow a . traceShow m . return $ m { editor = Editor.update a editor }
   GeneratorEditorAction ga -> return $   m { generator = GeneratorEditor.update ga g }
   ProofAssistantAction pa -> return $ m { proofAssistant = ProofAssistant.update pa p }
 
 viewModel :: Model -> View Action
-viewModel (Model editor g p) = Miso.div_ []
-  [ Miso.h1_ [] ["cartographer"]
+viewModel (Model ui editor g p) = Miso.div_ []
+  [ Miso.h1_ [] ["CARTOGRAPHER"]
+  , UIAction <$> UI.view ui
+  , Miso.hr_ []
+  , Miso.h1_ [] ["demo"]
   , GeneratorEditorAction <$> GeneratorEditor.view g
   , Miso.h1_ [] ["editor"]
   , EditorAction <$> Editor.view bialgebra editor

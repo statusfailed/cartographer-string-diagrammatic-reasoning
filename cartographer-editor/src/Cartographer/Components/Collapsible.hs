@@ -11,6 +11,9 @@ data Model m = Model
   , _modelState :: CollapsibleState
   } deriving(Eq, Ord, Show, Functor)
 
+newModel :: m -> Model m
+newModel m = Model m Expanded
+
 data Action a = Toggle | InnerAction a
   deriving(Eq, Ord, Show, Functor)
 

@@ -12,6 +12,7 @@ import qualified Cartographer.Layout as Layout
 import qualified Cartographer.Editor as Editor
 
 type Model = (Editor.Model, Editor.Model)
+emptyModel = (Editor.emptyModel, Editor.emptyModel)
 
 -- Left and Right are useful constructor names :)
 type Action = Either Editor.Action Editor.Action

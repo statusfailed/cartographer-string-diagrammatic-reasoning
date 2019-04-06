@@ -6,6 +6,9 @@ import Miso
 data Model = Model
   deriving(Eq, Ord, Show)
 
+emptyModel :: Model
+emptyModel = Model
+
 data Action = Action
   deriving(Eq, Ord, Show)
 
