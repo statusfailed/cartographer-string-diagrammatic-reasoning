@@ -6,6 +6,7 @@ import Miso
 import Miso.String (MisoString(..), ms)
 import Miso.Subscription.Keyboard (arrowsSub, Arrows(..))
 
+import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 
 import Cartographer.Layout (Layout)
@@ -75,7 +76,9 @@ testContext = testLHS
 
 testRewritten = fst $ Layout.rewriteLayout testMatch testRHS testContext
 
-theory = Proof.Theory (Set.fromList [copy, counit]) [(testLHS, testRHS), (testRHS, testLHS)]
+theory = Proof.Theory (Set.fromList [copy, counit]) rules
+  where
+    rules = catMaybes [Proof.rule testLHS testRHS, Proof.rule testRHS testLHS]
 
 -------------------------------
 -- Miso code

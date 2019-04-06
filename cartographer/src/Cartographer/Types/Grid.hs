@@ -96,6 +96,17 @@ shiftLayer x dx (Grid eq) = Grid (Equivalence.mapElems f eq)
       | x' >= x    = v + V2 dx 0
       | otherwise = v
 
+removeLayer :: Ord tile => Int -> Grid tile -> Grid tile
+removeLayer i (Grid eq) = Grid (Equivalence.mapElems f eq')
+  where
+    -- remove layer i
+    eq' = Equivalence.filterElems (\(V2 x _) -> x /= i) eq
+
+    f v@(V2 x' _)
+      | x' > i    = v - V2 1 0
+      | otherwise = v
+
+
 -- | Place a tile at a particular position.
 -- If this causes overlap, other tiles in the same layer (y-coordinate) will be
 -- shifted to make space.
@@ -145,6 +156,10 @@ lookup v (Grid eq) = do
   c  <- Equivalence.classOf v eq
   let vs = Equivalence.membersOf c eq
   return (c, vs)
+
+-- | An ascending list of all occupied tiles in the grid.
+occupiedTiles :: Grid tile -> [(Position, tile)]
+occupiedTiles = Map.toAscList . Equivalence._equivalenceClass . _gridPositions
 
 -- Get the top-most position of each tile in the grid
 -- (i.e., the position of its topmost tile).

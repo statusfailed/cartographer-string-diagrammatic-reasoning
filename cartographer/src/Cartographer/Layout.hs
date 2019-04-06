@@ -8,6 +8,7 @@
 -- /This module is intended to be imported qualified./
 module Cartographer.Layout where
 
+import Data.Function
 import qualified Data.Set as Set
 
 import Data.Map.Strict (Map)
@@ -388,10 +389,15 @@ rewriteLayout
   -> Layout sig     -- ^ the rule\'s RHS
   -> Layout sig     -- ^ the context which the matching took place in
   -> (Layout sig, MatchState sig) -- ^ rewritten context + match for rewrite
-rewriteLayout lhsMatch rhs context = (recomputePseudoNodes $ context
-  { hypergraph = hypergraph'
-  , grid       = cleanupPseudos . cleanupLHS $ grid'
-  }, rhsMatch)
+rewriteLayout lhsMatch rhs context =
+  -- WARNING: dodgy hack- recompute pseudos twice because using
+  -- removePseudonodeOnlyLayers will require the pseudos to need renumbering...
+  -- doh.
+  ( recomputePseudoNodes . removePseudonodeOnlyLayers . recomputePseudoNodes $ context
+    { hypergraph = hypergraph'
+    , grid       = cleanupPseudos . cleanupLHS $ grid'
+    }
+  , rhsMatch)
   where
     -- first rewrite the hypergraph:
     (hypergraph', rhsMatch) =
@@ -470,6 +476,22 @@ safe :: ([a] -> b) -> [a] -> Maybe b
 safe _ [] = Nothing
 safe f xs = Just (f xs)
 
+-------------------------------
+-- Tidier layouts
+
+-- | Delete layers containing only pseudonodes
+removePseudonodeOnlyLayers :: Layout sig -> Layout sig
+removePseudonodeOnlyLayers layout = layout
+  { grid = foldr Grid.removeLayer (grid layout) (pseudoLayers . grid $ layout)
+  }
+  where
+    layer ((V2 x _), _) = x
+    pseudoLayers
+      = List.sort -- put in order highest first, so we can remove
+      . fmap (layer . head) -- get the coords of those layers
+      . filter (all isPseudoTile . fmap snd) -- those where all are pseudos
+      . List.groupBy ((==) `on` layer) -- group by layer
+      . Grid.occupiedTiles -- tiles, in order
 
 -------------------------------
 -- Post-MVP functionality
