@@ -4,6 +4,9 @@ module Cartographer.Components.TheoryBuilder where
 import Miso
 import Data.Foldable
 
+import Data.Set (Set)
+import qualified Data.Set as Set
+
 import qualified Cartographer.Proof as Proof
 
 import Cartographer.Viewer (Generator(..))
@@ -50,4 +53,6 @@ toGenerators (Sequence.Model gs) = toList gs
 
 -- | Extract a 'Theory' from a TheoryBuilder 'Model'
 toTheory :: Model -> Maybe (Proof.Theory Generator)
-toTheory = undefined
+toTheory (Model (Sequence.Model sigs) (Sequence.Model pairs)) = do
+  rules <- mapM RuleBuilder.toRule (toList pairs)
+  return $ Proof.Theory (Set.fromList $ toList sigs) rules

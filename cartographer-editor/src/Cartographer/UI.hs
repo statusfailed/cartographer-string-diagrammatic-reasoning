@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- Design
 --
 -- "*Builder" modules represent editors where the "editing" state might not
@@ -16,8 +17,10 @@ import qualified Cartographer.Components.ProofBuilder as ProofBuilder
 import qualified Cartographer.Components.RuleBuilder as RuleBuilder
 
 data Model = Model
-  { theoryEditor :: Collapsible.Model TheoryBuilder.Model -- ^ a single theory editor
-  , proofWrapper :: ProofBuilder.Model
+  { theoryEditor :: Collapsible.Model TheoryBuilder.Model
+  -- ^ a single theory editor
+  , proofBuilder :: ProofBuilder.Model
+  -- ^ a single proof
   } deriving(Eq, Ord, Show)
 
 emptyModel :: Model
@@ -34,12 +37,19 @@ update :: Action -> Model -> Model
 update a (Model te pw) = case a of
   TheoryBuilderAction a ->
     Model (Collapsible.update TheoryBuilder.update a te) pw
-  ProofBuilderAction a -> Model te pw -- TODO!
+  ProofBuilderAction a ->
+    Model te (ProofBuilder.update a pw) -- TODO!
 
--- TODO: ProofBuilder
+-- TODO: dont run toTheory on every view; store in ProofBuilder model
+-- i.e. replace with Maybe (Theory Generator, ProofBuilder.Model)
 view :: Model -> View Action
-view (Model te _) =
-  TheoryBuilderAction <$> Collapsible.view viewFull viewSmall te
+view (Model te pb) = Miso.div_ []
+  [ TheoryBuilderAction <$> Collapsible.view viewFull viewSmall te
+  , Miso.br_ []
+  , case TheoryBuilder.toTheory (Collapsible._modelInnerModel te) of
+      Just t  -> ProofBuilderAction <$> ProofBuilder.view t pb
+      Nothing -> div_ [] ["no proof"]
+  ]
   where
     viewFull  = TheoryBuilder.view
     viewSmall = TheoryBuilder.view -- TODO
