@@ -119,7 +119,7 @@ breakWire (source, target) layout = zip sources targets where
 
 {-# WARNING wirePosition "partial function" #-}
 wirePosition
-  :: (Layout.Generator sig)
+  :: Layout.Generator sig
   => IntermediateWire
   -> Layout sig
   -- ^ TODO: FIXME: cache information like this map and diagram width and use

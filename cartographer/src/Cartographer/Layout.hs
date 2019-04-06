@@ -383,7 +383,7 @@ matchLayout pattern graph = Hypergraph.match (hypergraph pattern) (hypergraph gr
 -- p.s. this function is horrifying. sorry about that.
 -- this really really really needs refactoring
 rewriteLayout
-  :: Generator  sig
+  :: Generator sig
   => MatchState sig -- ^ a matching of the LHS of a rule in the context
   -> Layout sig     -- ^ the rule\'s RHS
   -> Layout sig     -- ^ the context which the matching took place in
@@ -410,6 +410,8 @@ rewriteLayout lhsMatch rhs context = (recomputePseudoNodes $ context
 
     place (e, sig, pos) =
       Grid.placeTile (TileHyperEdge e) (Grid.Height $ generatorHeight sig) pos
+
+    -- is this a bug?
     edges = Map.toList (Hypergraph.signatures hypergraph')
     xs = fmap (copyEdgePosition rhsMatch rhs translate) edges
 
@@ -436,7 +438,10 @@ rewriteLayout lhsMatch rhs context = (recomputePseudoNodes $ context
     n = rhsWidth
     V2 rhsWidth _ = Grid.dimensions (grid rhs)
 
--- ???
+-- Given a newly-copied edge ID, in the context, find out what its
+-- corresponding edge in the RHS was, and copy its position (translated by a
+-- supplied vector)
+-- This function does too many things...
 copyEdgePosition
   :: Generator sig
   => MatchState sig
@@ -444,11 +449,10 @@ copyEdgePosition
   -> V2 Int
   -> (HyperEdgeId, sig)
   -> Maybe (HyperEdgeId, sig, Position)
-copyEdgePosition rhsMatch rhs translate (e, sig) = do
-  e'  <- Bimap.lookup e (_matchStateEdges rhsMatch)
-  pos <- (+translate) <$> Grid.positionOf (TileHyperEdge e) (grid rhs)
-  return (e', sig, pos)
-
+copyEdgePosition rhsMatch rhs translate (eCtx, sig) = do
+  eRhs <- Bimap.lookupR eCtx (_matchStateEdges rhsMatch)
+  pos  <- (+translate) <$> Grid.positionOf (TileHyperEdge eRhs) (grid rhs)
+  return (eCtx, sig, pos)
 
 -- | Find the maximum position of a list of ports in a Grid.
 maxBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Maybe Position

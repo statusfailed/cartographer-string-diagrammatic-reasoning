@@ -47,8 +47,6 @@ counit = Generator (1, 0) ([0], []) "black" "counit"
 bialgebra :: [Generator]
 bialgebra = [py, copy, unit, counit]
 
-theory = Proof.Theory (Set.fromList [copy, counit]) [(testLHS, testRHS), (testRHS, testLHS)]
-
 runOps xs = foldl (flip (.)) id xs Layout.empty
 
 operations =
@@ -76,6 +74,8 @@ testContext = testLHS
 [testMatch] = Hypergraph.match (Layout.hypergraph testLHS) (Layout.hypergraph testContext)
 
 testRewritten = fst $ Layout.rewriteLayout testMatch testRHS testContext
+
+theory = Proof.Theory (Set.fromList [copy, counit]) [(testLHS, testRHS), (testRHS, testLHS)]
 
 -------------------------------
 -- Miso code

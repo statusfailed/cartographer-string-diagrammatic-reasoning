@@ -48,13 +48,11 @@ removeLhsEdges matchState context = foldr deleteEdge context edges
 
 -------------------------------
 -- addRhsEdges
--- TODO: rethink time!
 
 -- 1) Copy all edges + non-boundary ports into the matching, and add to the
 -- context graph.
 -- 2) Copy all RHS boundary ports into the matching
 -- 3) Add connections to context graph
-
 addRhsEdges
   :: Signature sig
   => OpenHypergraph sig
@@ -82,15 +80,18 @@ copyEdge e sig graph match = (graph', match')
     (e', graph') = addEdge sig graph
     match' = match
       { _matchStatePortsSource =
-          insertAll (_matchStatePortsSource match) sources
+          insertAll (_matchStatePortsSource match) sourcePorts
+
       , _matchStatePortsTarget =
-          insertAll (_matchStatePortsTarget match) targets
-      , _matchStateEdges = Bimap.insert e e' (_matchStateEdges match)
+          insertAll (_matchStatePortsTarget match) targetPorts
+
+      , _matchStateEdges =
+          Bimap.insert e e' (_matchStateEdges match)
       }
 
     (n, k) = toSize sig
-    sources = f e e' k
-    targets = f e e' n
+    sourcePorts = f e e' k
+    targetPorts = f e e' n
     f e e' m = [ (Port (Gen e) i, Port (Gen e') i) | i <- [0..m-1] ]
 
 -------------------------------
@@ -122,10 +123,10 @@ addRhsConnections
   -- ^ the current context graph, containing the (new) RHS edges
   -> OpenHypergraph sig
 addRhsConnections rhs rhsMatching context =
-  foldr (maybe id (uncurry connect)) context wires
+  foldr (maybe id $ uncurry connect) context wires
   where
-    f = uncurry (translateWire rhsMatching)
     wires = fmap f . Bimap.toList . connections $ rhs
+    f = uncurry (translateWire rhsMatching)
 
 -- | Look up a source and target port in a matching and return the matched
 -- versions.

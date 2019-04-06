@@ -1,7 +1,15 @@
 module Cartographer.Example where
 
-import Data.Hypergraph
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+
+import Data.Bimap (Bimap)
+import qualified Data.Bimap as Bimap
+
+import Data.Hypergraph hiding (identity)
 import Cartographer.Layout as Layout
+import qualified Cartographer.Types.Grid as Grid
+import qualified Data.Equivalence as Equivalence
 import Linear.V2 (V2(..))
 
 data Gen = Copy | Discard
@@ -9,7 +17,7 @@ data Gen = Copy | Discard
 
 instance Signature Gen where
   toSize Copy     = (1,2)
-  toSize Discard  = (0,1)
+  toSize Discard  = (1,0)
 
 instance Generator Gen where
   generatorHeight Copy    = 3
@@ -21,7 +29,7 @@ instance Generator Gen where
   generatorOutputs Copy = [0,2]
   generatorOutputs Discard = []
 
-lhs
+copyDiscard
   = id
   . connectPorts (Port Boundary 0) (Port (Gen 0) 0)
   . connectPorts (Port (Gen 0) 1) (Port Boundary 0)
@@ -30,21 +38,44 @@ lhs
   . snd . placeGenerator Copy (V2 0 0)
   $ Layout.empty
 
-rhs = connectPorts (Port Boundary 0) (Port Boundary 0) Layout.empty
+identity = connectPorts (Port Boundary 0) (Port Boundary 0) Layout.empty
 
-context = lhs
+-------------------------------
+-- bug hunting
 
-[m] = match (hypergraph lhs) (hypergraph context)
-
-rhg = rewrite m (hypergraph rhs) (hypergraph context)
-
-r = rewriteLayout m rhs context
+  -- match         lhs context
+  -- rewrite match rhs context
+{-(m : _) = match (hypergraph copyDiscard) (hypergraph copyDiscard)-}
+{-(r , _) = rewriteLayout m identity copyDiscard-}
+r = identity { hypergraph = (hypergraph identity) { Data.Hypergraph.nextHyperEdgeId = 2 } }
+(m': _) = match (hypergraph identity) (hypergraph r)
+(r', rm') = rewriteLayout m' copyDiscard r
 
 -------------------------------
 -- debug
 
-f :: Show sig => OpenHypergraph sig -> IO ()
-f = putStrLn . Data.Hypergraph.prettyPrint
+printMatching m = do
+  putStrLn "source"
+  mapM_ print $ Bimap.toList $ _matchStatePortsSource rm'
 
-g :: Show sig => Layout sig -> IO ()
-g = f . hypergraph
+  putStrLn "\ntarget"
+  mapM_ print $ Bimap.toList $ _matchStatePortsTarget rm'
+
+  putStrLn "\nedges"
+  mapM_ print $ Bimap.toList $ _matchStateEdges rm'
+
+
+prettyGrid (Grid.Grid (Equivalence.Equivalence cls ms)) =
+  uncurry f =<< Map.toList ms
+  where
+    f (TileHyperEdge  (HyperEdgeId e)) vs = show e ++ "  ->  " ++ show vs ++ "\n"
+    f (TilePseudoNode _)               vs = "P  ->  " ++ show vs ++ "\n"
+
+prettyLayout :: Show sig => Layout sig -> String
+prettyLayout (Layout hg g)
+  =  prettyPrint hg
+  ++ "grid\n-------------------------------\n"
+  ++ prettyGrid g
+
+printLayout :: Show sig => Layout sig -> IO ()
+printLayout = putStrLn . prettyLayout
