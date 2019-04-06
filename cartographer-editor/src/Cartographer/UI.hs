@@ -10,36 +10,36 @@ import Miso
 import qualified Cartographer.Components.Collapsible as Collapsible
 import qualified Cartographer.Components.Sequence as Sequence
 
-import qualified Cartographer.Components.TheoryEditor as TheoryEditor
-import qualified Cartographer.Components.ProofWrapper as ProofWrapper
+import qualified Cartographer.Components.TheoryBuilder as TheoryBuilder
+import qualified Cartographer.Components.ProofBuilder as ProofBuilder
 
 import qualified Cartographer.Components.RuleBuilder as RuleBuilder
 
 data Model = Model
-  { theoryEditor :: Collapsible.Model TheoryEditor.Model -- ^ a single theory editor
-  , proofWrapper :: ProofWrapper.Model
+  { theoryEditor :: Collapsible.Model TheoryBuilder.Model -- ^ a single theory editor
+  , proofWrapper :: ProofBuilder.Model
   } deriving(Eq, Ord, Show)
 
 emptyModel :: Model
 emptyModel = Model
-  (Collapsible.newModel TheoryEditor.emptyModel)
-  ProofWrapper.emptyModel
+  (Collapsible.newModel TheoryBuilder.emptyModel)
+  ProofBuilder.emptyModel
 
 data Action
-  = TheoryEditorAction (Collapsible.Action TheoryEditor.Action)
-  | ProofWrapperAction ProofWrapper.Action
+  = TheoryBuilderAction (Collapsible.Action TheoryBuilder.Action)
+  | ProofBuilderAction ProofBuilder.Action
   deriving(Eq, Ord, Show)
 
 update :: Action -> Model -> Model
 update a (Model te pw) = case a of
-  TheoryEditorAction a ->
-    Model (Collapsible.update TheoryEditor.update a te) pw
-  ProofWrapperAction a -> Model te pw -- TODO!
+  TheoryBuilderAction a ->
+    Model (Collapsible.update TheoryBuilder.update a te) pw
+  ProofBuilderAction a -> Model te pw -- TODO!
 
--- TODO: ProofWrapper
+-- TODO: ProofBuilder
 view :: Model -> View Action
 view (Model te _) =
-  TheoryEditorAction <$> Collapsible.view viewFull viewSmall te
+  TheoryBuilderAction <$> Collapsible.view viewFull viewSmall te
   where
-    viewFull  = TheoryEditor.view
-    viewSmall = TheoryEditor.view -- TODO
+    viewFull  = TheoryBuilder.view
+    viewSmall = TheoryBuilder.view -- TODO

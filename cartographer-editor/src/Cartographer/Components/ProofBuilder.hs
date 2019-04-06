@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor #-}
-module Cartographer.Components.ProofWrapper where
+module Cartographer.Components.ProofBuilder where
 
 import Miso
 

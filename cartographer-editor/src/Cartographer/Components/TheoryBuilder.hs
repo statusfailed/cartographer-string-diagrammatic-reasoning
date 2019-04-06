@@ -1,8 +1,10 @@
 {-# LANGUAGE DeriveFunctor #-}
-module Cartographer.Components.TheoryEditor where
+module Cartographer.Components.TheoryBuilder where
 
 import Miso
 import Data.Foldable
+
+import qualified Cartographer.Proof as Proof
 
 import Cartographer.Viewer (Generator(..))
 import qualified Cartographer.Viewer as Viewer
@@ -39,10 +41,13 @@ view (Model s r) = Miso.div_ []
   , Miso.div_ [] [ RuleAction <$> Sequence.view (RuleBuilder.view gs) r ]
   ]
   where
+    -- TODO: also include the set of generators already used in diagrams, OR
+    -- don't permit editing generators used?
     gs = toGenerators s
 
 toGenerators :: Sequence.Model GeneratorEditor.Model -> [Generator]
 toGenerators (Sequence.Model gs) = toList gs
 
--- | Extract a 'Theory' from a TheoryEditor 'Model'
-toTheory :: Model -> Maybe (Theory Generator)
+-- | Extract a 'Theory' from a TheoryBuilder 'Model'
+toTheory :: Model -> Maybe (Proof.Theory Generator)
+toTheory = undefined
