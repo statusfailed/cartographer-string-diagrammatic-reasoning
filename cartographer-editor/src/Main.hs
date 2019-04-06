@@ -25,6 +25,9 @@ import qualified Cartographer.Editor as Editor
 import qualified Cartographer.Components.GeneratorEditor as GeneratorEditor
 import qualified Cartographer.Components.ProofAssistant as ProofAssistant
 
+import Cartographer.UI ()
+
+-- TODO: get rid of this :D
 import Debug.Trace (traceShow)
 
 -------------------------------
