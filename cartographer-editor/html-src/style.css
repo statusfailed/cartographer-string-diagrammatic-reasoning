@@ -1,0 +1,9 @@
+h1, h2, h3 {
+  font-family: 'Cinzel', serif;
+}
+
+h1.headline {
+  text-align: center;
+  width: 100%;
+  font-size: 3em;
+}

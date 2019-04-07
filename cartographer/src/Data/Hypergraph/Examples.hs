@@ -73,7 +73,7 @@ nonConvexPattern = Hypergraph conns edges 2
       , (Port (Gen 1)  1, Port Boundary 1)
       ]
 
-nonConvexGraph = Hypergraph conns edges
+nonConvexGraph = Hypergraph conns edges 3
   where
     edges = Map.fromList [(0, Two), (1, Two), (2, One)]
     conns = Bimap.fromList $

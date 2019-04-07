@@ -131,16 +131,6 @@ updateModel action m@(Model ui editor g p) = case action of
 
 viewModel :: Model -> View Action
 viewModel (Model ui editor g p) = Miso.div_ []
-  [ Miso.h1_ [] ["CARTOGRAPHER"]
+  [ h1_ [class_ "headline"] ["CARTOGRAPHER"]
   , UIAction <$> UI.view ui
-  , Miso.hr_ []
-  , Miso.h1_ [] ["demo"]
-  , GeneratorEditorAction <$> GeneratorEditor.view g
-  , Miso.h1_ [] ["editor"]
-  , EditorAction <$> Editor.view bialgebra editor
-  , Miso.h1_ [] ["rewritten"]
-  , const NoOp   <$> Viewer.view testContext (ViewerOptions 25)
-  , const NoOp   <$> Viewer.view testRewritten (ViewerOptions 25)
-  , Miso.h1_ [] ["ProofAssistant"]
-  , ProofAssistantAction <$> ProofAssistant.view theory p
   ]

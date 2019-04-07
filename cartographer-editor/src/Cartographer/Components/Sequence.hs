@@ -26,8 +26,9 @@ update emptyInner _ Append (Model values) = Model (values |> emptyInner)
 -- TODO: parametrise by class name?
 view :: (m -> View a) -> Model m -> View (Action a)
 view viewInner (Model xs) = Miso.div_ attrs
-  [ Miso.button_ [onClick Append] ["+"]
-  , Miso.div_ [] $ zipWith viewOne [0..] (toList xs)
+  [ div_ [] $ zipWith viewOne [0..] (toList xs)
+  , hr_ []
+  , button_ [class_ "button is-primary", onClick Append] ["+"] -- TODO: icon?
   ]
   where
     viewOne ix m = InnerAction ix <$> viewInner m

@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Cartographer.Components.TheoryBuilder where
 
 import Miso
@@ -40,13 +40,21 @@ update (RuleAction a) (Model s r) =
 
 view :: Model -> View Action
 view (Model s r) = Miso.div_ []
-  [ Miso.div_ [] [ SignatureAction <$> Sequence.view GeneratorEditor.view  s ]
-  , Miso.div_ [] [ RuleAction <$> Sequence.view (RuleBuilder.view gs) r ]
+  [ box
+    [ subtitle "signature"
+    , Miso.div_ [] [ SignatureAction <$> Sequence.view GeneratorEditor.view  s ]
+    ]
+  , box
+    [ subtitle "rewrite rules"
+    , Miso.div_ [] [ RuleAction <$> Sequence.view (RuleBuilder.view gs) r ]
+    ]
   ]
   where
     -- TODO: also include the set of generators already used in diagrams, OR
     -- don't permit editing generators used?
     gs = toGenerators s
+    subtitle s = h5_ [ class_ "subtitle is-5" ] [ s ]
+    box = div_ [ class_ "box" ]
 
 toGenerators :: Sequence.Model GeneratorEditor.Model -> [Generator]
 toGenerators (Sequence.Model gs) = toList gs

@@ -43,9 +43,11 @@ update a (Model te pw) = case a of
 -- TODO: dont run toTheory on every view; store in ProofBuilder model
 -- i.e. replace with Maybe (Theory Generator, ProofBuilder.Model)
 view :: Model -> View Action
-view (Model te pb) = Miso.div_ []
-  [ TheoryBuilderAction <$> Collapsible.view viewFull viewSmall te
-  , Miso.br_ []
+view (Model te pb) = div_ [class_ "container is-widescreen"]
+  [ subtitle "Theory"
+  , TheoryBuilderAction <$> Collapsible.view viewFull viewSmall te
+  , hr_ []
+  , subtitle "Proof"
   , case TheoryBuilder.toTheory (Collapsible._modelInnerModel te) of
       Just t  -> ProofBuilderAction <$> ProofBuilder.view t pb
       Nothing -> div_ [] ["no proof"]
@@ -53,3 +55,5 @@ view (Model te pb) = Miso.div_ []
   where
     viewFull  = TheoryBuilder.view
     viewSmall = TheoryBuilder.view -- TODO
+    subtitle s = h2_ [ class_ "subtitle is-2" ] [s]
+    box = div_ [ class_ "box" ]

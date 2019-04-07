@@ -25,10 +25,21 @@ update (Right a) (l, r) = (l, Editor.update a r)
 --    * complete
 --    * have same dimensions
 view :: [Generator] -> Model -> View Action
-view gs (l, r) = Miso.div_ [Miso.style_ [("display", "flex")]]
-  [ Miso.div_ [ Miso.style_ [("flex", "50%")] ] [ Left  <$> Editor.view gs l ]
-  , Miso.div_ [ Miso.style_ [("flex", "50%")] ] [ Right <$> Editor.view gs r ]
+view gs (l, r) = div_ [ Miso.class_ "message is-info" ]
+  [ div_ [ class_ "message-header" ]
+    [ "Rule"
+    , button_ [ class_ "delete" ] [] -- TODO: hook this up
+    ]
+  , div_ [ class_ "message-body" ]
+    [ div_ [ class_ "columns" ]
+      [ col . box $ Left  <$> Editor.view gs l
+      , col . box $ Right <$> Editor.view gs r
+      ]
+    ]
   ]
+  where
+    col = div_ [ class_ "column" ] . pure
+    box = div_ [ class_ "box" ] . pure
 
 toRule :: Model -> Maybe (Proof.Rule Generator)
 toRule (Editor.Model l _, Editor.Model r _) = Proof.rule l r

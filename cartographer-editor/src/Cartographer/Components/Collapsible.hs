@@ -28,10 +28,11 @@ update :: (a -> m -> m) -> Action a -> Model m -> Model m
 update _ Toggle (Model m s) = Model m (toggle s)
 update updateInner (InnerAction a) (Model m s) = Model (updateInner a m) s
 
+-- TODO: bring back show/hide button
 view :: (m -> View a) -> (m -> View a) -> Model m -> View (Action a)
 view expanded collapsed (Model inner state) = Miso.div_ []
-  [ Miso.div_ [] [ Miso.button_ [ onClick Toggle ] [ "show/hide" ] ]
-  , Miso.div_ []
+  [ -- Miso.div_ [] [ Miso.button_ [ onClick Toggle ] [ "show/hide" ] ]
+    Miso.div_ []
       [ case state of 
           Expanded  -> InnerAction <$> expanded inner
           Collapsed -> InnerAction <$> collapsed inner

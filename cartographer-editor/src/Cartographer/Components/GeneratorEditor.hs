@@ -3,7 +3,7 @@
 -- | View and edit a signature - a set of generators
 module Cartographer.Components.GeneratorEditor where
 
-import Miso (View(..), Attribute)
+import Miso
 import qualified Miso as Miso
 import qualified Miso.Svg as Svg
 import Miso.String (MisoString, fromMisoString, ms)
@@ -68,37 +68,45 @@ mkPortList n h = left ++ mid ++ right
     mid   = if odd n then [h `div` 2] else []
 
 view :: Generator -> View Action
-view g = Miso.div_ [Miso.style_ [("display", "flex")]]
-  [ editControls g
-  , previewGenerator g
+view g = div_ [ class_ "message is-info" ]
+  [ div_ [ class_ "message-header" ]
+    [ "Generator"
+    , button_ [ class_ "delete" ] [] -- TODO hook this up
+    ]
+  , div_ [ class_ "message-body" ]
+    [ div_ [ class_ "columns" ]
+      [ col . box $ editControls g
+      , col . box $ previewGenerator g
+      ]
+    ]
   ]
+  where
+    col = div_ [ class_ "column" ] . pure
+    box = div_ [ class_ "box" ] . pure
 
 editControls :: Generator -> View Action
-editControls g = Miso.div_ [Miso.style_ [("flex", "50%")]]
-  [ Miso.input_
-      [ Miso.placeholder_ "name"
-      , Miso.onInput SetName
-      , Miso.value_ (name g)
-      ] -- name
-  , Miso.div_ []
-    [ inlineInput
-        [ Miso.placeholder_ "# inputs"
-        , Miso.onInput (numeric SetNumInput)
-        , Miso.value_ (ms . fst . size $ g)
-        ]
-    , " -> "
-    , inlineInput
-        [ Miso.placeholder_ "# outputs"
-        , Miso.onInput (numeric SetNumOutput)
-        , Miso.value_ (ms . snd . size $ g)
-        ]
-    ]
-  , Miso.input_
-      [ Miso.placeholder_ "color"
-      , Miso.onInput SetColor
-      , Miso.value_ (color g)
-      ]
+editControls g = div_ []
+  [ SetName              <$> horizontalInput "Name" (name g)
+  , numeric SetNumInput  <$> horizontalInput "# inputs" (ms . fst . size $ g)
+  , numeric SetNumOutput <$> horizontalInput "# outputs" (ms . snd . size $ g)
+  , SetColor             <$> horizontalInput "Color" (color g)
   ]
+
+horizontalInput label value =
+  div_ [ class_ "field is-horizontal" ]
+    [ fieldLabel label
+    , fieldBody value
+    ]
+
+fieldLabel label = 
+  div_ [ class_ "field-label is-normal" ]
+    [ label_ [ class_ "label" ] [ label ] ]
+
+fieldBody value =
+  div_ [ class_ "field-body" ]
+    [ div_ [ class_ "field" ]
+      [ input_ [ class_ "input", onInput id, value_ value ] ]
+    ]
 
 numeric :: (Int -> Action) -> MisoString -> Action
 numeric f s = case reads (fromMisoString s) of
@@ -106,11 +114,13 @@ numeric f s = case reads (fromMisoString s) of
   (x,_):_ -> f x
 
 inlineInput :: [Attribute action] -> View action
-inlineInput attrs = Miso.input_ (Miso.style_ [("display", "inline-block")] : attrs)
+inlineInput attrs = input_ (style_ [("display", "inline-block")] : attrs)
 
 previewGenerator :: Generator -> View action
-previewGenerator g = Miso.div_ [Miso.style_ [("flex", "50%")]]
-  [ Svg.svg_ attrs [ Viewer.viewGenerator g 0 opts ] ]
+previewGenerator g = div_ []
+  [ h5_ [] [ "preview: ", text . ms . name $ g ]
+  , Svg.svg_ attrs [ Viewer.viewGenerator g 0 opts ]
+  ]
   where
     tileSize = 50
     opts = Viewer.ViewerOptions tileSize
