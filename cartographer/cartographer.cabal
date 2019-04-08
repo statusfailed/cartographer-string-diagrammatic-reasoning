@@ -25,6 +25,8 @@ library
   other-modules:       Data.Hypergraph.Type
                      , Data.Hypergraph.Match
                      , Data.Hypergraph.Rewrite
+                     , Data.Hypergraph.Traversal
+                     , Data.Hypergraph.Layer
                      , Data.Hypergraph.Examples
                      , Cartographer.Example
   -- other-extensions:    

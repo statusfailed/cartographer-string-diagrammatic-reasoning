@@ -51,42 +51,43 @@ invertRewrite =
 -------------------------------
 -- The paper's non-convex matching example
 
-data NonConvexGen = One | Two
+data NonConvexGen = E1 | E2 | E3
   deriving(Eq, Ord, Read, Show)
-sizeOfNonConvex One = (1,1)
-sizeOfNonConvex Two = (2,2)
 
+sizeOfNonConvex E1 = (1,2)
+sizeOfNonConvex E2 = (2,1)
+sizeOfNonConvex E3 = (1,1)
+
+instance Signature NonConvexGen where
+  toSize = sizeOfNonConvex
+
+-- ----\/-----
+--     /\
+-- -e1---e2---
 nonConvexPattern = Hypergraph conns edges 2
   where
-    edges = Map.fromList [(0, Two), (1, Two)]
+    edges = Map.fromList [(0, E1), (1, E2)]
     conns = Bimap.fromList $
-      -- gen 0 in
-      [ (Port Boundary 1, Port (Gen 0) 0)
-      , (Port Boundary 2, Port (Gen 0) 1)
-      -- gen 0 out
+      -- wires from left to right
+      [ (Port Boundary 0, Port (Gen 1) 0)
+      , (Port Boundary 1, Port (Gen 0) 0)
       , (Port (Gen 0)  0, Port Boundary 0)
       , (Port (Gen 0)  1, Port (Gen 1) 1)
-      -- gen 1 in
-      , (Port Boundary 0, Port (Gen 1) 0)
       -- gen 1 out
-      , (Port (Gen 1)  0, Port Boundary 0)
-      , (Port (Gen 1)  1, Port Boundary 1)
+      , (Port (Gen 1)  0, Port Boundary 1)
       ]
 
+--     e3
+--    / \
+-- -e1---e2---
 nonConvexGraph = Hypergraph conns edges 3
   where
-    edges = Map.fromList [(0, Two), (1, Two), (2, One)]
+    edges = Map.fromList [(0, E1), (1, E2), (2, E3)]
     conns = Bimap.fromList $
       -- gen 0 in
-      [ (Port Boundary 1, Port (Gen 0) 0)
-      , (Port Boundary 2, Port (Gen 0) 1)
-      -- gen 0 out
-      , (Port (Gen 0)  0, Port (Gen 2) 0) -- NOTE DIFFERENCE
-      -- gen 0 ~> gen 1
+      [ (Port Boundary 0, Port (Gen 0) 0)
+      , (Port (Gen 0)  0, Port (Gen 2) 0)
       , (Port (Gen 0)  1, Port (Gen 1) 1)
-      -- gen 1 in
       , (Port (Gen 2)  0, Port (Gen 1) 0)
-      -- gen 1 out
       , (Port (Gen 1)  0, Port Boundary 0)
-      , (Port (Gen 1)  1, Port Boundary 1)
       ]

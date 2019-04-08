@@ -150,7 +150,3 @@ insertAll = foldr (uncurry Bimap.insert)
 -- not necessarily the context"
 boundaryPorts :: Bimap (Port a Open) (Port a Open) -> [(Port a Open, Port a Open)]
 boundaryPorts = Bimap.toList . Bimap.filter (\x _ -> isBoundary x)
-
-isBoundary :: Port a Open -> Bool
-isBoundary (Port e _) = open True (const False) e
-

@@ -3,6 +3,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
 module Data.Hypergraph.Type
   ( Signature(..)
   , HyperEdgeId(..)
@@ -13,8 +14,10 @@ module Data.Hypergraph.Type
   , Target
   , PortRole(..)
   , Open(..)
+  , Wire(..)
   , open
   , toPortRole
+  , isBoundary
   , Hypergraph(..)
   , empty
   , identity
@@ -23,10 +26,12 @@ module Data.Hypergraph.Type
   , deleteEdge
   , connect
   , isConnectedTo
+  , toWire
   , source
   , target
   , isComplete
   , prettyPrint
+  , prettyWires
   ) where
 
 import Data.Foldable
@@ -97,6 +102,10 @@ portRole s t p = case toPortRole p of
   Source -> s
   Target -> t
 
+-- | Is an 'Open' 'Port' a Boundary?
+isBoundary :: Port a Open -> Bool
+isBoundary (Port e _) = open True (const False) e
+
 -- | The type of Hypergraphs, parametrised by the type of generators (sig).
 -- By using different types for "f" we can make this open or closed
 -- hypergraphs.
@@ -113,6 +122,8 @@ data Hypergraph f sig = Hypergraph
   , signatures      :: Map HyperEdgeId sig
   , nextHyperEdgeId :: HyperEdgeId
   }
+
+type Wire f = (Port Source f, Port Target f)
 
 -- | NOTE: using UndecidableInstances here, but we don't really need it because
 -- we never actually need to parametrise by the "f" type.
@@ -269,17 +280,29 @@ isConnectedTo
   => Port Source f -> Port Target f -> Hypergraph f sig -> Bool
 isConnectedTo s t = maybe False (==t) . Bimap.lookup s . connections
 
+-- | Given a source or target port, get the Wire it belongs to.
+toWire
+  :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId), Reifies a PortRole)
+  => Port a f
+  -> Hypergraph f sig
+  -> Maybe (Port Source f, Port Target f)
+toWire p@(Port e i) hg = case toPortRole p of
+  Source ->
+    let p' = Port e i in (p',) <$> Bimap.lookup  p' (connections hg)
+  Target ->
+    let p' = Port e i in (,p') <$> Bimap.lookupR p' (connections hg)
+
 -- | What is the /source/ port that connects to this /target/, if any?
 source
   :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
   => Port Target f -> Hypergraph f sig -> Maybe (Port Source f)
-source t = Bimap.lookupR t . connections
+source t = fmap fst . toWire t
 
 -- | What is the /target/ port that this /source/ connects to, if any?
 target
   :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
   => Port Source f -> Hypergraph f sig -> Maybe (Port Target f)
-target s = Bimap.lookup s . connections
+target s = fmap snd . toWire s
 
 -- | Are all the ports of this hypergraph connected to something?
 -- Yes if 2 * numWires == numPorts
