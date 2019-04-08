@@ -58,7 +58,9 @@ proof term = case isComplete (hypergraph term) of
 
 -- | Which rules of a theory can be applied to the current proof state?
 -- NOTE: some rules will appear more than once if they have multiple valid matchings.
-matchingRules :: Eq sig => Theory sig -> Layout sig -> [(Rule sig, MatchState sig)]
+matchingRules
+  :: (Signature sig, Eq sig)
+  => Theory sig -> Layout sig -> [(Rule sig, MatchState sig)]
 matchingRules (Theory _ axioms) term = axioms >>= f
   where f rule@(Rule lhs _) = fmap (rule,) (matchLayout lhs term)
 

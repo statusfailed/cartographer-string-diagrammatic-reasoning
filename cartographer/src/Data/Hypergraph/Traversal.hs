@@ -28,8 +28,10 @@ import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
 bfsAcyclic :: Signature sig => OpenHypergraph sig -> [[Wire Open]]
-bfsAcyclic hg = wireBfsAcyclic hg (start hg)
-  where start = filter (isInitial hg . fst) . Bimap.toList . connections
+bfsAcyclic hg = take maxPathLen $ wireBfsAcyclic hg (start hg)
+  where
+    start = filter (isInitial hg . fst) . Bimap.toList . connections
+    maxPathLen = Bimap.size . connections $ hg
 
 wireBfsAcyclic
   :: Signature sig

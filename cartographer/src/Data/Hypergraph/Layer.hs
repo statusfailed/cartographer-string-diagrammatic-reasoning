@@ -29,7 +29,3 @@ layer' hg = uncurry f =<< zip (bfsAcyclic hg) [0..]
 toEdges :: Wire Open -> Int -> [(HyperEdgeId, Int)]
 toEdges (s, t) i =
   catMaybes $ [ (,i) <$> toHyperEdgeId s, (,i+1) <$> toHyperEdgeId t ]
-
-toHyperEdgeId :: Port a Open -> Maybe HyperEdgeId
-toHyperEdgeId (Port Boundary _) = Nothing
-toHyperEdgeId (Port (Gen e) _)  = Just e

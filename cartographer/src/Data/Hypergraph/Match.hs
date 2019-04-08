@@ -7,6 +7,12 @@
 module Data.Hypergraph.Match where
 
 import Data.Hypergraph.Type as Hypergraph
+import Data.Hypergraph.Traversal (wireBfs, outputWires)
+
+import Data.Maybe (catMaybes)
+
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -264,8 +270,69 @@ matchAll = void . mapM matchStep
 --    pattern (or any order, but BFS for efficiency!)
 --    * For each source port:
 --      * Try to match each wire (uniquely defined by a source port)
-match :: Eq sig => OpenHypergraph sig -> OpenHypergraph sig -> [MatchState sig]
-match pattern graph = fmap snd $ runMatch pattern graph (matchAll ps)
+match
+  :: (Hypergraph.Signature sig, Eq sig)
+  => OpenHypergraph sig -> OpenHypergraph sig -> [MatchState sig]
+match pattern graph
+  = filter (\m -> isConvex m graph) -- only keep convex MatchStates
+  . fmap snd $ runMatch pattern graph (matchAll ps)
   where
     -- TODO: for efficiency, use bfs instead of arbitrary order?
     ps = Bimap.keys (connections pattern)
+
+-------------------------------
+-- Convexity checking
+
+-- isConvex summary:
+--  1) S = set of nodes in ctx that matched RHS boundary nodes in pattern
+--  2) R = set of nodes reachable from S (concat <=< wireBfs)
+--  3) E = set of hyperedges of R which are in the matching
+-- return 'null e'
+
+-- | Is a 'MatchState' convex?
+-- Yes, if B is empty, where:
+--  A is the set of non-match nodes reachable from inside the matched pattern
+--  B is the set of     match nodes reachable from A
+isConvex :: Signature sig => MatchState sig -> OpenHypergraph sig -> Bool
+isConvex m hg = null e
+  where
+    -- starting set of wires
+    s = rightBoundaryOutputWires m hg
+    -- reachable wires (from the start set)
+    r = concat $ wireBfs hg Set.empty s
+    -- edges that are reachable and also in the matching
+    e = targetsInMatching m r
+
+-- S: the *output wires* of any generators in the ctx which are matched as a R
+-- Boundary
+-- s = targetPorts <=< fmap snd . filter (isFinal . fst) rhsMatches
+-- r = wireBfs hg Set.empty s
+-- e = filter inMatching
+
+-- The output wires of a 'MatchState'.
+--   - Take all the ports in a context that correspond to Right boundary nodes
+--     in a matching
+--   - Get the output wires of those ports
+rightBoundaryOutputWires
+  :: Signature sig
+  => MatchState sig -> OpenHypergraph sig -> [Wire Open]
+rightBoundaryOutputWires m hg = outputWires hg =<< Set.toList xs
+  where
+    -- the set of hyperedges of ports appearing as Right Boundaries in the
+    -- matching
+    xs = Set.fromList . catMaybes . fmap toHyperEdgeId $ rightBoundaryPorts m
+
+-- | The list of ports appearing in a graph as right boundary ports in some
+-- matching.
+rightBoundaryPorts :: MatchState sig -> [Port Target Open]
+rightBoundaryPorts =
+  fmap snd . filter f . Bimap.toList . _matchStatePortsTarget
+  where f  = isBoundary . fst
+
+-- | given a matching and a list of wires, return the list of hyperedges which
+-- appear as a target of a wire, and are in the matching.
+targetsInMatching :: MatchState sig -> [Wire Open] -> [HyperEdgeId]
+targetsInMatching m =
+  filter inMatching . catMaybes . fmap toHyperEdgeId . fmap snd
+  where
+    inMatching t = Bimap.memberR t (_matchStateEdges m)

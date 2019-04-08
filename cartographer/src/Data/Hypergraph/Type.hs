@@ -18,6 +18,7 @@ module Data.Hypergraph.Type
   , open
   , toPortRole
   , isBoundary
+  , toHyperEdgeId
   , Hypergraph(..)
   , empty
   , identity
@@ -105,6 +106,10 @@ portRole s t p = case toPortRole p of
 -- | Is an 'Open' 'Port' a Boundary?
 isBoundary :: Port a Open -> Bool
 isBoundary (Port e _) = open True (const False) e
+
+toHyperEdgeId :: Port a Open -> Maybe HyperEdgeId
+toHyperEdgeId (Port Boundary _) = Nothing
+toHyperEdgeId (Port (Gen e) _)  = Just e
 
 -- | The type of Hypergraphs, parametrised by the type of generators (sig).
 -- By using different types for "f" we can make this open or closed

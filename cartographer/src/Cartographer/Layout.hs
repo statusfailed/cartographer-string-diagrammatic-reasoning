@@ -364,7 +364,9 @@ insertLayer x n layout
 -------------------------------
 -- Matching & Rewriting helpers
 
-matchLayout :: Eq sig => Layout sig -> Layout sig -> [MatchState sig]
+matchLayout
+  :: (Hypergraph.Signature sig, Eq sig)
+  => Layout sig -> Layout sig -> [MatchState sig]
 matchLayout pattern graph = Hypergraph.match (hypergraph pattern) (hypergraph graph)
 
 -- | Automatically lay out a hypergraph by positioning its hyperedges in a way
