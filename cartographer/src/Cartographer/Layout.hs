@@ -367,114 +367,40 @@ insertLayer x n layout
 matchLayout :: Eq sig => Layout sig -> Layout sig -> [MatchState sig]
 matchLayout pattern graph = Hypergraph.match (hypergraph pattern) (hypergraph graph)
 
--- | Apply a rewrite rule on Layouts, attempting to preserve as much of the
--- geometry of the RHS of the rule as possible.
+-- | Automatically lay out a hypergraph by positioning its hyperedges in a way
+-- that preserves the layering invariant.
 --
--- The general idea is that we place the RHS between its two boundaries.
--- However, there may not be enough room- for example if we're rewriting the
--- identity diagram to some non-zero-width diagram.
--- So first, we make space by inserting the required number of layers, then we
--- insert the generators one by one.
---
--- We also need to translate the RHS positions from their origin at (0,0)
--- to a new origin. Specifically:
---      x: maximum x coordinate of all left-boundary ports
---      y: minimum y coordinate of *all* boundary ports
---
--- p.s. this function is horrifying. sorry about that.
--- this really really really needs refactoring
+-- TODO: pick the y coordinate more carefully?
+layout :: Generator sig => OpenHypergraph sig -> Grid (Tile HyperEdgeId)
+layout hg =
+  foldr (uncurry place) Grid.empty (Map.toList $ Hypergraph.signatures hg)
+  where
+    -- use layering as the x coordinate.
+    m = Map.fromList (Hypergraph.layer hg)
+    place e sig = case Map.lookup e m of
+      Nothing  -> error $ "layout: " ++ show e
+      Just x ->
+        let h = Grid.Height (generatorHeight sig)
+        in  Grid.placeTile (TileHyperEdge e) h (V2 x 0)
+
+-- | Apply a rewrite rule on Layouts.
+-- uses 'layout' to redraw the rewritten graph.
 rewriteLayout
   :: Generator sig
   => MatchState sig -- ^ a matching of the LHS of a rule in the context
   -> Layout sig     -- ^ the rule\'s RHS
   -> Layout sig     -- ^ the context which the matching took place in
   -> (Layout sig, MatchState sig) -- ^ rewritten context + match for rewrite
-rewriteLayout lhsMatch rhs context =
-  -- WARNING: dodgy hack- recompute pseudos twice because using
-  -- removePseudonodeOnlyLayers will require the pseudos to need renumbering...
-  -- doh.
-  ( recomputePseudoNodes . removePseudonodeOnlyLayers . recomputePseudoNodes $ context
-    { hypergraph = hypergraph'
-    , grid       = cleanupPseudos . cleanupLHS $ grid'
-    }
-  , rhsMatch)
+rewriteLayout lhsMatch rhs context = (recomputePseudoNodes context', rhsMatch)
   where
     -- first rewrite the hypergraph:
     (hypergraph', rhsMatch) =
       Hypergraph.rewrite lhsMatch (hypergraph rhs) (hypergraph context)
 
-    -- 1) update the context, and make space in its grid for the RHS pattern
-    -- 2) add all the edges from the RHS into the context's grid.
-    grid' = foldr place (Grid.shiftLayer shiftX n $ grid context) (catMaybes xs)
-
-    -- remove all LHS hyperedges and pseudos from the grid- pseudos recomputed
-    -- shortly.
-    cleanupLHS g = foldr Grid.removeTile g $
-      fmap (TileHyperEdge . snd) . Bimap.toList . _matchStateEdges $ lhsMatch
-    cleanupPseudos g =
-      foldr Grid.removeTile g (filter isPseudoTile . fmap fst . Grid.toList $ g)
-
-    place (e, sig, pos) =
-      Grid.placeTile (TileHyperEdge e) (Grid.Height $ generatorHeight sig) pos
-
-    -- is this a bug?
-    edges = Map.toList (Hypergraph.signatures hypergraph')
-    xs = fmap (copyEdgePosition rhsMatch rhs translate) edges
-
-    -- how much to translate each generator from the RHS pattern to the context
-    translate = (maybe 0 (+1) maxL) * V2 1 0
-
-    -- shift from right upwards, because its the lowest point guaranteed not to
-    -- have a left boundary in the same layer.
-    V2 shiftX _ = translate
-
-    -- the maximum "Left boundary" coordinate
-    maxL
-      = maxBoundary (grid context) . fmap snd . boundaryPorts
-      $ _matchStatePortsSource rhsMatch
-
-    -- the minimum "right boundary" coordinate
-    minR
-      = minBoundary (grid context) . fmap snd . boundaryPorts
-      $ _matchStatePortsTarget $ rhsMatch
-
-    -- number of layers to insert
-    -- TODO: be smarter about this- we don't always need to insert layers,
-    -- e.g., if minR was the right boundary.
-    n = rhsWidth
-    V2 rhsWidth _ = Grid.dimensions (grid rhs)
-
--- Given a newly-copied edge ID, in the context, find out what its
--- corresponding edge in the RHS was, and copy its position (translated by a
--- supplied vector)
--- This function does too many things...
-copyEdgePosition
-  :: Generator sig
-  => MatchState sig
-  -> Layout sig
-  -> V2 Int
-  -> (HyperEdgeId, sig)
-  -> Maybe (HyperEdgeId, sig, Position)
-copyEdgePosition rhsMatch rhs translate (eCtx, sig) = do
-  eRhs <- Bimap.lookupR eCtx (_matchStateEdges rhsMatch)
-  pos  <- (+translate) <$> Grid.positionOf (TileHyperEdge eRhs) (grid rhs)
-  return (eCtx, sig, pos)
-
--- | Find the maximum position of a list of ports in a Grid.
-maxBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Maybe Position
-maxBoundary g = safe maximum . catMaybes . fmap (portGridPosition g)
-
--- | Find the minimum position of a list of ports in a Grid.
-minBoundary :: Grid (Tile HyperEdgeId) -> [Port a Open] -> Maybe Position
-minBoundary g = safe minimum . catMaybes . fmap (portGridPosition g)
-
-portGridPosition :: Grid (Tile HyperEdgeId) -> Port a Open -> Maybe Position
-portGridPosition _ (Port Boundary _) = Nothing
-portGridPosition g (Port (Gen e) _)  = Grid.positionOf (TileHyperEdge e) g
-
-safe :: ([a] -> b) -> [a] -> Maybe b
-safe _ [] = Nothing
-safe f xs = Just (f xs)
+    context' = context
+      { hypergraph = hypergraph'
+      , grid       = layout hypergraph'
+      }
 
 -------------------------------
 -- Tidier layouts

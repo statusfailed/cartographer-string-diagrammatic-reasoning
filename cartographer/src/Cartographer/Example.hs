@@ -12,6 +12,20 @@ import qualified Cartographer.Types.Grid as Grid
 import qualified Data.Equivalence as Equivalence
 import Linear.V2 (V2(..))
 
+import Data.Hypergraph.Examples
+
+instance Generator NonConvexGen where
+  generatorHeight E1 = 1
+  generatorHeight _  = 3
+
+  generatorInputs E1 = [0]
+  generatorInputs E2 = [1]
+  generatorInputs E3 = [0,2]
+
+  generatorOutputs E1 = [0]
+  generatorOutputs E2 = [0,2]
+  generatorOutputs E3 = [1]
+
 data Gen = Copy | Discard
   deriving(Eq, Ord, Read, Show)
 

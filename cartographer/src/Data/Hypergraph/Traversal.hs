@@ -29,7 +29,7 @@ import qualified Data.Bimap as Bimap
 
 bfsAcyclic :: Signature sig => OpenHypergraph sig -> [[Wire Open]]
 bfsAcyclic hg = wireBfsAcyclic hg (start hg)
-  where start = filter (isBoundary . fst) . Bimap.toList . connections
+  where start = filter (isInitial hg . fst) . Bimap.toList . connections
 
 wireBfsAcyclic
   :: Signature sig
@@ -118,3 +118,11 @@ targetPorts
   => HyperEdgeId -> sig -> [Port Target f]
 targetPorts e sig = fmap (Port (pure e)) [0..n - 1]
   where (n, _) = toSize sig
+
+-- | Does a port have zero inputs
+isInitial :: Signature sig => OpenHypergraph sig -> Port a Open -> Bool
+isInitial hg (Port Boundary _) = True
+isInitial hg (Port (Gen e)  _) =
+  maybe False hasNoInputs . Map.lookup e . signatures $ hg
+  where
+    hasNoInputs = (==0) . fst . toSize

@@ -16,7 +16,7 @@ layer
   :: Signature sig
   => OpenHypergraph sig
   -> [(HyperEdgeId, Int)]
-layer = fmap (fmap $ subtract 1) . (uncurry toEdges <=< layer')
+layer = uncurry toEdges <=< layer'
 
 layer'
   :: Signature sig
