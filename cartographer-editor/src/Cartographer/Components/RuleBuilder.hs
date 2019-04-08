@@ -12,6 +12,8 @@ import qualified Cartographer.Layout as Layout
 import qualified Cartographer.Editor as Editor
 
 type Model = (Editor.Model, Editor.Model)
+
+emptyModel :: Model
 emptyModel = (Editor.emptyModel, Editor.emptyModel)
 
 -- Left and Right are useful constructor names :)
@@ -40,6 +42,9 @@ view gs (l, r) = div_ [ Miso.class_ "message is-info" ]
   where
     col = div_ [ class_ "column" ] . pure
     box = div_ [ class_ "box" ] . pure
+
+fromRule :: Proof.Rule Generator -> Model
+fromRule (Proof.Rule l r) = (Editor.fromLayout l, Editor.fromLayout r)
 
 toRule :: Model -> Maybe (Proof.Rule Generator)
 toRule (Editor.Model l _, Editor.Model r _) = Proof.rule l r

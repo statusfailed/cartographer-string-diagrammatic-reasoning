@@ -12,8 +12,11 @@ import Miso
 data Model m = Model (Seq m)
   deriving(Eq, Ord, Show)
 
-emptyModel :: Model a
+emptyModel :: Model m
 emptyModel = Model Seq.empty
+
+fromList :: [m] -> Model m
+fromList = Model . Seq.fromList
 
 data Action a = InnerAction Int a | Append
   deriving(Eq, Ord, Show)

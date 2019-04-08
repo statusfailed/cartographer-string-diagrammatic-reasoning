@@ -15,6 +15,9 @@ data Model = Model
   , _modelActionState :: ActionState
   } deriving(Eq, Ord, Show)
 
+fromLayout :: Layout Generator -> Model
+fromLayout l = Model l Done
+
 emptyModel :: Model
 emptyModel = Model Layout.empty Done
 

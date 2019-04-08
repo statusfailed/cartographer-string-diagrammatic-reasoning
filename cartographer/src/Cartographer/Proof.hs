@@ -2,7 +2,7 @@
 module Cartographer.Proof
   ( Theory(..)
   , Proof(..)
-  , Rule
+  , Rule(..)
   , rule
   , ProofStep(..)
   , proof

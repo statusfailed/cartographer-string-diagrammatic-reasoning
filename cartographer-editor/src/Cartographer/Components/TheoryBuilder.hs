@@ -17,6 +17,8 @@ import qualified Cartographer.Components.Sequence as Sequence
 import qualified Cartographer.Components.GeneratorEditor as GeneratorEditor
 import qualified Cartographer.Components.RuleBuilder as RuleBuilder
 
+import qualified Cartographer.Preload as Preload
+
 data Model = Model
   { signature :: Sequence.Model GeneratorEditor.Model
   , rules     :: Sequence.Model RuleBuilder.Model
@@ -28,6 +30,7 @@ emptyModel = Model Sequence.emptyModel Sequence.emptyModel
 data Action
   = SignatureAction (Sequence.Action GeneratorEditor.Action)
   | RuleAction      (Sequence.Action RuleBuilder.Action)
+  | Preload         (Proof.Theory Generator)
   deriving(Eq, Ord, Show)
 
 update :: Action -> Model -> Model
@@ -37,10 +40,12 @@ update (SignatureAction a) (Model s r) =
 update (RuleAction a) (Model s r) =
   let r' = Sequence.update RuleBuilder.emptyModel RuleBuilder.update a r
   in  Model s r'
+update (Preload theory) _ = fromTheory theory
 
 view :: Model -> View Action
 view (Model s r) = Miso.div_ []
-  [ box
+  [ button_ [ onClick (Preload Preload.bialgebra) ] [ "preload bialgebra" ]
+  , box
     [ subtitle "signature"
     , Miso.div_ [] [ SignatureAction <$> Sequence.view GeneratorEditor.view  s ]
     ]
@@ -64,3 +69,9 @@ toTheory :: Model -> Maybe (Proof.Theory Generator)
 toTheory (Model (Sequence.Model sigs) (Sequence.Model pairs)) = do
   rules <- mapM RuleBuilder.toRule (toList pairs)
   return $ Proof.Theory (Set.fromList $ toList sigs) rules
+
+fromTheory :: Proof.Theory Generator -> Model
+fromTheory (Proof.Theory generators axioms) = Model gs as
+  where
+    gs = Sequence.fromList (toList generators)
+    as = Sequence.fromList (fmap RuleBuilder.fromRule axioms)

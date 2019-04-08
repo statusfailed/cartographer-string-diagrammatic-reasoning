@@ -8,6 +8,7 @@ module Cartographer.Editor
   , update
   , view
   , ActionState(..)
+  , fromLayout
   ) where
 
 import Cartographer.Editor.Types
