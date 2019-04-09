@@ -8,6 +8,7 @@
 module Cartographer.Viewer
   ( Generator(..)
   , ViewerOptions(..)
+  , defaultOptions
   , Action(..)
   , ClickedPorts(..)
   , view

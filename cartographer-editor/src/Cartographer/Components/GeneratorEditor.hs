@@ -122,12 +122,11 @@ previewGenerator g = div_ []
   , Svg.svg_ attrs [ Viewer.viewGenerator g 0 opts ]
   ]
   where
-    tileSize = 50
-    opts = Viewer.ViewerOptions tileSize
+    opts = Viewer.defaultOptions
     height = fromIntegral (Layout.generatorHeight g)
     attrs =
-      [ Svg.height_ (ms $ height * tileSize)
-      , Svg.width_  (ms tileSize)
+      [ Svg.height_ (ms $ height * Viewer.tileSize opts)
+      , Svg.width_  (ms $ Viewer.tileSize opts)
       ]
 
 -------------------------------

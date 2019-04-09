@@ -89,7 +89,7 @@ viewRenderableWith m (Renderable tiles wires dimensions) opts =
     ]
   where
     unitSize = fromIntegral tileSize
-    ViewerOptions tileSize = opts
+    ViewerOptions tileSize highlightColor = opts
     f t     = uncurry (viewTile m) t opts
     g (w,(v1,v2)) = viewWire m w v1 v2 opts
 
@@ -107,7 +107,7 @@ viewTile
   -> Position
   -> ViewerOptions
   -> View action
-viewTile m (TilePseudoNode p) v = viewPseudoNode p v
+viewTile m (TilePseudoNode p) v = viewPseudoNode m p v
 viewTile m (TileHyperEdge  g) v = viewGenerator g v
 
 -- | Render a wire in pixel coordinates between two integer grid positions
@@ -118,7 +118,7 @@ viewWire
   -> Position
   -> ViewerOptions
   -> View action
-viewWire m (s,t) x y (ViewerOptions tileSize)
+viewWire m (s,t) x y (ViewerOptions tileSize highlightColor)
   = wrap $ connectorWith color (f 1 x) (f 0 y) -- dodgy af
   where
     scale   = (* V2 tileSize tileSize)
@@ -132,7 +132,7 @@ viewWire m (s,t) x y (ViewerOptions tileSize)
     sourceHighlight = Bimap.memberR s (_matchStatePortsSource m)
     targetHighlight = Bimap.memberR t (_matchStatePortsTarget m)
     color = case sourceHighlight && targetHighlight of
-      True  -> "red"
+      True  -> highlightColor
       False -> "black"
 
 -- | Draw a square grid spaced by unitSize pixels over the area specified by
@@ -172,13 +172,27 @@ clickableGridSquares size@(V2 w h) unitSize =
 
 -- | View a pseudonode
 -- TODO: make these movable! Will require use of the 'PseudoNode' ID.
-viewPseudoNode :: Layout.PseudoNode -> V2 Int -> ViewerOptions -> View action
-viewPseudoNode _ pos (ViewerOptions tileSize) = connectorWith "blue" start end
+viewPseudoNode
+  :: MatchState Generator
+  -> Layout.PseudoNode
+  -> V2 Int
+  -> ViewerOptions
+  -> View action
+viewPseudoNode m pn pos (ViewerOptions tileSize highlightColor) =
+  connectorWith color start end
   where
     unitSize = fromIntegral tileSize
     realPos = unitSize *^ V2 2 1 * fmap fromIntegral pos
     start   = realPos + V2 0.0 (unitSize / 2.0) :: V2 Double
     end     = start + V2 unitSize 0.0
+
+    -- TODO: this appears twice, factor into function?
+    (Layout.PseudoNode s t _) = pn
+    sourceHighlight = Bimap.memberR s (_matchStatePortsSource m)
+    targetHighlight = Bimap.memberR t (_matchStatePortsTarget m)
+    color = case sourceHighlight && targetHighlight of
+      True  -> highlightColor
+      False -> "black"
 
 -- View a Position-annotated generator
 -- Generic drawing:
@@ -190,14 +204,15 @@ viewGenerator
   -> Position
   -> ViewerOptions
   -> View action
-viewGenerator g@(Generator size ports color name) pos' (ViewerOptions tileSize)
+viewGenerator g@(Generator size ports color name) pos' opts
   = 
-  let pos = pos' * (V2 2 1)
+  let
+      ViewerOptions tileSize _ = opts
+      pos = pos' * (V2 2 1)
       unitSize = fromIntegral tileSize
       height = unitSize * fromIntegral (Layout.generatorHeight g) :: Double
       width  = unitSize
       v@(V2 x y) = fmap ((*unitSize) . fromIntegral) pos
-
       cx = x + width/2.0
       cy = y + height/2.0
       c = V2 cx cy

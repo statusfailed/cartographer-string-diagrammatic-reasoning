@@ -41,14 +41,14 @@ update a m = case a of
 view :: Theory Generator -> Model -> View Action
 view theory proof@(Proof _ steps) = Miso.div_ []
   [ Miso.div_ [] (viewStep <$> reverse steps)
-  , const NoOp <$> Viewer.view (Proof._proofTerm proof) (Viewer.ViewerOptions 50)
+  , const NoOp <$> Viewer.view (Proof._proofTerm proof) Viewer.defaultOptions
   , viewMatches theory proof
   , Miso.button_ [ Miso.onClick Undo ] [ "undo" ]
   ]
 
 viewStep :: ProofStep Generator -> View Action
 viewStep (ProofStep term rule match) = Miso.div_ []
-  [ const NoOp <$> Viewer.viewWith match term (Viewer.ViewerOptions 50) ]
+  [ const NoOp <$> Viewer.viewWith match term Viewer.defaultOptions ]
 
 viewMatches :: Theory Generator -> Model -> View Action
 viewMatches theory proof = Miso.div_ [Miso.style_ [("display", "flex")]] $

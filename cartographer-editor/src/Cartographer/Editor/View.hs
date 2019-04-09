@@ -19,10 +19,9 @@ import qualified Cartographer.Viewer as Viewer
 view :: [Generator] -> Model -> View Editor.Action
 view gs (Model layout actionState) = Miso.div_ []
   [ toolbar gs
-  , viewer layout vopts
+  , viewer layout Viewer.defaultOptions
   , infoFooter layout
   ]
-  where vopts = Viewer.ViewerOptions 50 -- TODO: dont hard-code?
 
 -- | Show the toolbar (above the viewer)
 -- this consists of a "connect ports" button, and a number of generator
@@ -33,13 +32,13 @@ toolbar gs = Miso.div_ [] $ connectButton : fmap generatorButton gs
 generatorButton :: Generator -> View Action
 generatorButton g = Miso.button_ [Miso.onClick (StartPlaceGenerator g)]
   [ Svg.svg_ attrs [ Viewer.viewGenerator g 0 opts ] ]
-  where 
-    tileSize = 20
-    opts = Viewer.ViewerOptions tileSize -- TODO: dont hardcode this?
+  where
+    -- TODO: dont hardcode?
+    opts   = Viewer.defaultOptions { Viewer.tileSize = 20 }
     height = fromIntegral (Layout.generatorHeight g)
     attrs =
-      [ Svg.height_ (ms $ height * tileSize)
-      , Svg.width_ (ms tileSize)
+      [ Svg.height_ (ms $ height * Viewer.tileSize opts)
+      , Svg.width_ (ms $ Viewer.tileSize opts)
       ]
 
 -- | The "connect ports" button.

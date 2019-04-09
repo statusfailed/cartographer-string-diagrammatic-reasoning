@@ -1,4 +1,5 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Cartographer.Viewer.Types where
 
 import Control.Monad.Reader.Class
@@ -14,8 +15,12 @@ import Cartographer.Types.Grid (Position)
 
 -- | Options to draw the Viewer
 data ViewerOptions = ViewerOptions
-  { tileSize :: Int
+  { tileSize       :: Int
+  , highlightColor :: MisoString
   } deriving(Eq, Ord, Read, Show)
+
+defaultOptions :: ViewerOptions
+defaultOptions = ViewerOptions 50 "red"
 
 -- | The viewer works with a concrete Generator type, which describes how
 -- it can be drawn
