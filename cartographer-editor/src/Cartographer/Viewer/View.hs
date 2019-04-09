@@ -60,7 +60,7 @@ viewRenderable (Renderable tiles wires dimensions) opts =
   Svg.svg_ svgAttrs
     [ diagramStyle
     , gridLines unitSize (scaledDims + V2 0 unitSize)
-    , Svg.g_ [] (fmap g wires)
+    , Svg.g_ [] (fmap (g . snd) wires)
     , Svg.g_ [] (fmap f tiles)
     , clickableGridSquares spacedDims unitSize
     ]

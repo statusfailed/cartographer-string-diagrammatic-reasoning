@@ -35,15 +35,12 @@ import qualified Cartographer.Types.Grid as Grid
 import Data.Reflection
 
 -- TODO: document this class
--- gist: the "geometric" information about a generator, like where its ports
--- are positioned relative to the top, and its height.
+-- gist: the "geometric" information about a generator, like its height, and
+-- where its ports are positioned relative to the top.
 class Hypergraph.Signature sig => Generator sig where
   generatorHeight  :: sig -> Int   -- ^ height of the generator
   generatorInputs  :: sig -> [Int] -- ^ port offset of target ports
   generatorOutputs :: sig -> [Int] -- ^ port offset of source ports
-  -- "laws":
-  --  1) length (generatorSources e) <= generatorHeight
-  --  2) length (generatorTargets e) <= generatorHeight
 
 newtype Layer = Layer { unLayer :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)

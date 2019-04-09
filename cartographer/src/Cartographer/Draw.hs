@@ -9,10 +9,11 @@
 module Cartographer.Draw where
 
 import Data.Hypergraph
-  (Hypergraph, HyperEdgeId, Port(..), PortRole(..), Open(..), Source, Target)
+  ( Hypergraph, HyperEdgeId, Port(..), PortRole(..)
+  , Wire(..), Open(..), Source, Target)
 import qualified Data.Hypergraph as Hypergraph
 
-import Cartographer.Layout (Layout, Tile(..))
+import Cartographer.Layout (Layout, Tile(..), PseudoNode(..))
 import qualified Cartographer.Layout as Layout
 
 import Cartographer.Types.Grid (Grid, Position)
@@ -40,9 +41,10 @@ import Linear.V2 (V2(..))
 data Renderable sig v = Renderable
   { tiles :: [(Tile sig, v)]
   -- ^ Both "real" tiles and Pseudonodes (but what about boundaries!?)
-  , wires :: [(v, v)]
-  -- ^ The set of wires in the form (source, target).
-  -- This list does *not* contain connections that span multiple layers.
+  , wires :: [(Wire Open, (v, v))]
+  -- The list of wire segments to draw.
+  -- this list contains the wire being drawn, and the endpoints of the segment
+  -- of that wire.
   , dimensions :: V2 Int
   -- ^ width/height of the grid (in tiles)
   } deriving(Eq, Ord, Read, Show, Functor)
@@ -80,7 +82,7 @@ toTiles layout = fmap f . Map.toList . Layout.positions $ layout
 toWires
   :: Layout.Generator sig
   => Layout sig
-  -> [(Position, Position)]
+  -> [(Wire Open, (Position, Position))]
 toWires layout =
   flip wirePosition layout <$> (breakWire' =<< allWires layout)
   where
@@ -89,11 +91,9 @@ toWires layout =
 -------------------------------
 -- toWires: helper functions
 
-type Wire = (Port Source Open, Port Target Open)
-
 -- Get the "raw" connectivity information from the layout - i.e. all wires,
 -- including those that span multiple layers.
-allWires :: Layout sig -> [Wire]
+allWires :: Layout sig -> [Wire Open]
 allWires = Bimap.toList . Hypergraph.connections . Layout.hypergraph
 
 -------------------------------
@@ -107,9 +107,18 @@ type IntermediateWire = (Endpoint Source, Endpoint Target)
 -- a hyperedge port.
 type Endpoint a = Tile (Port a Open)
 
+-- | get the port of an 'Endpoint'
+endpointToSource :: Endpoint Source -> Port Source Open
+endpointToSource (TileHyperEdge p) = p
+endpointToSource (TilePseudoNode (PseudoNode s _ _)) = s
+
+endpointToTarget :: Endpoint Target -> Port Target Open
+endpointToTarget (TileHyperEdge p) = p
+endpointToTarget (TilePseudoNode (PseudoNode _ t _)) = t
+
 -- Break a long wire into intermediates. An intermediate goes between two
 -- endpoints, where an endpoint is either a port or a pseudonode.
-breakWire :: Wire -> Layout sig -> [IntermediateWire]
+breakWire :: Wire Open -> Layout sig -> [IntermediateWire]
 breakWire (source, target) layout = zip sources targets where
   -- list of pseudonodes between source and target ports.
   pseudos   = Layout.connectionPseudoNodes source target layout
@@ -124,10 +133,11 @@ wirePosition
   -> Layout sig
   -- ^ TODO: FIXME: cache information like this map and diagram width and use
   -- reader monad to tidy up!
-  -> (Position, Position)
-wirePosition (s, t) layout = (ps, pt) where
+  -> (Wire Open, (Position, Position))
+wirePosition (s, t) layout = (w, (ps, pt)) where
   ps = endpointPosition s layout
   pt = endpointPosition t layout
+  w  = (endpointToSource s, endpointToTarget t)
 
 {-# WARNING endpointPosition "partial function" #-}
 -- | Get the tile position of an 'Endpoint'
