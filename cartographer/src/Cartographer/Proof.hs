@@ -45,8 +45,8 @@ data Proof sig = Proof
   } deriving(Eq, Ord, Show)
 
 data ProofStep sig = ProofStep
-  { _proofStepTerm     :: Layout sig     -- ^ The current proof state (i.e. term)
-  , _proofStepRule     :: Rule sig       -- ^ The rewrite rule applied
+  { _proofStepTerm     :: Layout sig    -- ^ The term that was rewritten
+  , _proofStepRule     :: Rule sig      -- ^ The rewrite rule applied
   , _proofStepLhsMatch :: MatchState sig -- ^ a matching of the LHS in the term
   } deriving(Eq, Ord, Show)
 

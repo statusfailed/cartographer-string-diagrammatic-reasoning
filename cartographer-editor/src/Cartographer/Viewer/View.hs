@@ -29,6 +29,10 @@ import Data.String
 import Linear.Vector ((*^))
 import Linear.V2 (V2(..))
 
+import Data.Bimap (Bimap)
+import qualified Data.Bimap as Bimap
+
+import Data.Hypergraph (MatchState(..), emptyMatchState, Wire(..), Open(..))
 import Cartographer.Layout (Layout, Tile(..))
 import qualified Cartographer.Layout as Layout
 
@@ -45,30 +49,49 @@ import Cartographer.Viewer.Types
 
 import Cartographer.Viewer.Model (toAction)
 
+viewWith
+  :: MatchState Generator -> Layout Generator -> ViewerOptions -> View Action
+viewWith m layout opts = flip toAction layout <$> viewRawWith m layout opts
+
 view :: Layout Generator -> ViewerOptions -> View Action
-view layout opts = flip toAction layout <$> viewRaw layout opts
+view = viewWith emptyMatchState
+
+viewRawWith
+  :: MatchState Generator
+  -> Layout Generator
+  -> ViewerOptions
+  -> View RawAction
+viewRawWith m layout opts
+  = flip (viewRenderableWith m) opts . Draw.toGridCoordinates $ layout
 
 viewRaw :: Layout Generator -> ViewerOptions -> View RawAction
-viewRaw layout opts = flip viewRenderable opts . Draw.toGridCoordinates $ layout
+viewRaw = viewRawWith emptyMatchState
 
 viewRenderable
   :: Draw.Renderable Generator Position -> ViewerOptions -> View RawAction
-viewRenderable (Renderable tiles wires dimensions) opts =
+viewRenderable = viewRenderableWith emptyMatchState
+
+viewRenderableWith
+  :: MatchState Generator
+  -> Draw.Renderable Generator Position
+  -> ViewerOptions
+  -> View RawAction
+viewRenderableWith m (Renderable tiles wires dimensions) opts =
   -- NOTE: order here is very important for clickability!
   -- If anything is above clickableGridSquares, then not all squares are
   -- clickable!
   Svg.svg_ svgAttrs
     [ diagramStyle
     , gridLines unitSize (scaledDims + V2 0 unitSize)
-    , Svg.g_ [] (fmap (g . snd) wires)
+    , Svg.g_ [] (fmap g wires)
     , Svg.g_ [] (fmap f tiles)
     , clickableGridSquares spacedDims unitSize
     ]
   where
     unitSize = fromIntegral tileSize
     ViewerOptions tileSize = opts
-    f t = uncurry viewTile t opts
-    g t = uncurry viewWire t opts
+    f t     = uncurry (viewTile m) t opts
+    g (w,(v1,v2)) = viewWire m w v1 v2 opts
 
   -- intersperse a "wires" col between every generator
   -- NOTE: the (- V2 1 0) removes the final unnecessary "wires" column from the
@@ -78,14 +101,25 @@ viewRenderable (Renderable tiles wires dimensions) opts =
     V2 imgWidth imgHeight = scaledDims + V2 0 unitSize
     svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
 
-viewTile :: Tile Generator -> Position -> ViewerOptions -> View action
-viewTile (TilePseudoNode p) v = viewPseudoNode p v
-viewTile (TileHyperEdge  g) v = viewGenerator g v
+viewTile
+  :: MatchState Generator
+  -> Tile Generator
+  -> Position
+  -> ViewerOptions
+  -> View action
+viewTile m (TilePseudoNode p) v = viewPseudoNode p v
+viewTile m (TileHyperEdge  g) v = viewGenerator g v
 
 -- | Render a wire in pixel coordinates between two integer grid positions
-viewWire :: Position -> Position -> ViewerOptions -> View action
-viewWire x y (ViewerOptions tileSize)
-  = wrap $ connector (f 1 x) (f 0 y) -- dodgy af
+viewWire
+  :: MatchState Generator
+  -> Wire Open
+  -> Position
+  -> Position
+  -> ViewerOptions
+  -> View action
+viewWire m (s,t) x y (ViewerOptions tileSize)
+  = wrap $ connectorWith color (f 1 x) (f 0 y) -- dodgy af
   where
     scale   = (* V2 tileSize tileSize)
     stretch = (* V2 2 1)
@@ -94,6 +128,12 @@ viewWire x y (ViewerOptions tileSize)
     f a = offset . fmap fromIntegral . scale . shift a . stretch
 
     wrap = Svg.g_ [Svg.class_' "wire"] . pure
+
+    sourceHighlight = Bimap.memberR s (_matchStatePortsSource m)
+    targetHighlight = Bimap.memberR t (_matchStatePortsTarget m)
+    color = case sourceHighlight && targetHighlight of
+      True  -> "red"
+      False -> "black"
 
 -- | Draw a square grid spaced by unitSize pixels over the area specified by
 -- the vector.
@@ -133,7 +173,7 @@ clickableGridSquares size@(V2 w h) unitSize =
 -- | View a pseudonode
 -- TODO: make these movable! Will require use of the 'PseudoNode' ID.
 viewPseudoNode :: Layout.PseudoNode -> V2 Int -> ViewerOptions -> View action
-viewPseudoNode _ pos (ViewerOptions tileSize) = connectorWith "red" start end
+viewPseudoNode _ pos (ViewerOptions tileSize) = connectorWith "blue" start end
   where
     unitSize = fromIntegral tileSize
     realPos = unitSize *^ V2 2 1 * fmap fromIntegral pos

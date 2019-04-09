@@ -48,7 +48,7 @@ view theory proof@(Proof _ steps) = Miso.div_ []
 
 viewStep :: ProofStep Generator -> View Action
 viewStep (ProofStep term rule match) = Miso.div_ []
-  [ const NoOp <$> Viewer.view term (Viewer.ViewerOptions 50) ]
+  [ const NoOp <$> Viewer.viewWith match term (Viewer.ViewerOptions 50) ]
 
 viewMatches :: Theory Generator -> Model -> View Action
 viewMatches theory proof = Miso.div_ [Miso.style_ [("display", "flex")]] $

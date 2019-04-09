@@ -11,6 +11,7 @@ module Cartographer.Viewer
   , Action(..)
   , ClickedPorts(..)
   , view
+  , viewWith
   , RawAction(..)
   , viewRaw
   , viewGenerator
