@@ -32,7 +32,8 @@ import Linear.V2 (V2(..))
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
-import Data.Hypergraph (MatchState(..), emptyMatchState, Wire(..), Open(..))
+import Data.Hypergraph
+  ( HyperEdgeId, MatchState(..), emptyMatchState, Wire(..), Open(..))
 import Cartographer.Layout (Layout, Tile(..))
 import qualified Cartographer.Layout as Layout
 
@@ -90,7 +91,7 @@ viewRenderableWith m (Renderable tiles wires dimensions) opts =
   where
     unitSize = fromIntegral tileSize
     ViewerOptions tileSize highlightColor = opts
-    f t     = uncurry (viewTile m) t opts
+    f (t, v)      = viewTile m t v opts
     g (w,(v1,v2)) = viewWire m w v1 v2 opts
 
   -- intersperse a "wires" col between every generator
@@ -103,12 +104,12 @@ viewRenderableWith m (Renderable tiles wires dimensions) opts =
 
 viewTile
   :: MatchState Generator
-  -> Tile Generator
+  -> Tile (HyperEdgeId, Generator)
   -> Position
   -> ViewerOptions
   -> View action
-viewTile m (TilePseudoNode p) v = viewPseudoNode m p v
-viewTile m (TileHyperEdge  g) v = viewGenerator g v
+viewTile m (TilePseudoNode p    ) v = viewPseudoNode    m p v
+viewTile m (TileHyperEdge  (e,g)) v = viewGeneratorWith m e g v
 
 -- | Render a wire in pixel coordinates between two integer grid positions
 viewWire
@@ -194,17 +195,31 @@ viewPseudoNode m pn pos (ViewerOptions tileSize highlightColor) =
       True  -> highlightColor
       False -> "black"
 
--- View a Position-annotated generator
--- Generic drawing:
---    * black outline of total area
---    * vertically-centered circle (according to generatorHeight)
---    * Symmetric bezier wires to circle from each port
+-- TODO:
+-- dodgy hack alert: giving (-1) as the HyperEdgeId here, because
+-- it won't match in the emptyMatchState anyway.
+-- This is kinda rubbish, but preserves the current API.
+-- Better fix: pass in whether or not to highlight from outside the function?
 viewGenerator
   :: Generator
   -> Position
   -> ViewerOptions
   -> View action
-viewGenerator g@(Generator size ports color name) pos' opts
+viewGenerator = viewGeneratorWith emptyMatchState (-1)
+
+-- View a Position-annotated generator
+-- Generic drawing:
+--    * black outline of total area
+--    * vertically-centered circle (according to generatorHeight)
+--    * Symmetric bezier wires to circle from each port
+viewGeneratorWith
+  :: MatchState Generator
+  -> HyperEdgeId
+  -> Generator
+  -> Position
+  -> ViewerOptions
+  -> View action
+viewGeneratorWith m e g@(Generator size ports color name) pos' opts
   = 
   let
       ViewerOptions tileSize _ = opts
@@ -217,6 +232,10 @@ viewGenerator g@(Generator size ports color name) pos' opts
       cy = y + height/2.0
       c = V2 cx cy
 
+      strokeColor = case Bimap.memberR e (_matchStateEdges m) of
+        True  -> highlightColor opts
+        False -> "black"
+
   in
     Svg.g_ [Svg.class_' "generator"]
       [ Svg.rect_
@@ -226,12 +245,14 @@ viewGenerator g@(Generator size ports color name) pos' opts
         , Svg.strokeWidth_ "2"
         , Svg.fill_ "transparent"
         ] []
-      , Svg.g_ [] (fmap (viewGeneratorWire v c unitSize) lports) -- left ports
-      , Svg.g_ [] (fmap (viewGeneratorWire v c unitSize) rports) -- right ports
+        -- left ports
+      , Svg.g_ [] (fmap (viewGeneratorWire strokeColor v c unitSize) lports)
+        -- right ports
+      , Svg.g_ [] (fmap (viewGeneratorWire strokeColor v c unitSize) rports)
       , Svg.circle_
         [ Svg.cx_ (ms cx), Svg.cy_ (ms cy), Svg.r_ (ms $ unitSize / 8)
-        , Svg.stroke_ "black", Svg.strokeWidth_ "2", Svg.fill_ color ] []
-      {-, clickTarget index unitSize v-}
+        , Svg.stroke_ strokeColor, Svg.strokeWidth_ "2", Svg.fill_ color
+        ] []
       ]
   where
     lports = fmap Left (fst ports)
@@ -240,12 +261,14 @@ viewGenerator g@(Generator size ports color name) pos' opts
 
 -- | View the wires connecting a generator's central shape to its ports
 viewGeneratorWire
-  :: V2 Double -- ^ Top-left coordinate
+  :: MS.MisoString
+  -> V2 Double -- ^ Top-left coordinate
   -> V2 Double -- ^ Center coordinate
   -> Double    -- ^ Unit (tile) size
   -> Either Int Int -- ^ a port on the ith tile, either Left or Right side
   -> View action
-viewGeneratorWire x cx unitSize port = connector cx (x + V2 px py)
+viewGeneratorWire color x cx unitSize port =
+  connectorWith color cx (x + V2 px py)
   where
     px = either (const 0) (const unitSize) port
     py = (+ unitSize/2.0) . (*unitSize) . fromIntegral $ either id id port

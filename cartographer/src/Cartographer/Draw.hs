@@ -39,7 +39,7 @@ import Linear.V2 (V2(..))
 -- TODO: missing tile dimensions!
 -- TODO: missing matchings!
 data Renderable sig v = Renderable
-  { tiles :: [(Tile sig, v)]
+  { tiles :: [(Tile (HyperEdgeId, sig), v)]
   -- ^ Both "real" tiles and Pseudonodes (but what about boundaries!?)
   , wires :: [(Wire Open, (v, v))]
   -- The list of wire segments to draw.
@@ -60,13 +60,13 @@ toGridCoordinates l = Renderable
 
 -- TODO: gross, rewrite D:
 {-# WARNING toTiles "partial function" #-}
-toTiles :: Layout sig -> [(Tile sig, Position)]
+toTiles :: Layout sig -> [(Tile (HyperEdgeId, sig), Position)]
 toTiles layout = fmap f . Map.toList . Layout.positions $ layout
   where
     m = Hypergraph.signatures . Layout.hypergraph $ layout
     f (t, v) = case t of
       TileHyperEdge  e -> case Map.lookup e m of
-        Just r  -> (TileHyperEdge r, v + V2 1 0)
+        Just r  -> (TileHyperEdge (e, r), v + V2 1 0)
         Nothing -> error $ "toTiles: missing key " ++ show e
       TilePseudoNode p -> (TilePseudoNode p, v + V2 1 0)
 
