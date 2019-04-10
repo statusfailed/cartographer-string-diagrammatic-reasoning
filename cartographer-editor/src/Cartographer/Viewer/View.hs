@@ -83,14 +83,14 @@ viewRenderableWith m (Renderable tiles wires dimensions) opts =
   -- clickable!
   Svg.svg_ svgAttrs
     [ diagramStyle
-    , gridLines unitSize (scaledDims + V2 0 unitSize)
+    , if (showGrid opts) then rulers else Svg.g_ [] []
     , Svg.g_ [] (fmap g wires)
     , Svg.g_ [] (fmap f tiles)
     , clickableGridSquares spacedDims unitSize
     ]
   where
-    unitSize = fromIntegral tileSize
-    ViewerOptions tileSize highlightColor = opts
+    rulers = gridLines unitSize (scaledDims + V2 0 unitSize)
+    unitSize = fromIntegral (tileSize opts)
     f (t, v)      = viewTile m t v opts
     g (w,(v1,v2)) = viewWire m w v1 v2 opts
 
@@ -98,7 +98,7 @@ viewRenderableWith m (Renderable tiles wires dimensions) opts =
   -- NOTE: the (- V2 1 0) removes the final unnecessary "wires" column from the
   -- grid.
     spacedDims = V2 2 1 * dimensions - V2 1 0
-    scaledDims = fmap fromIntegral (tileSize *^ spacedDims)
+    scaledDims = fmap fromIntegral (tileSize opts *^ spacedDims)
     V2 imgWidth imgHeight = scaledDims + V2 0 unitSize
     svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
 
@@ -119,7 +119,7 @@ viewWire
   -> Position
   -> ViewerOptions
   -> View action
-viewWire m (s,t) x y (ViewerOptions tileSize highlightColor)
+viewWire m (s,t) x y (ViewerOptions tileSize highlightColor _)
   = wrap $ connectorWith color (f 1 x) (f 0 y) -- dodgy af
   where
     scale   = (* V2 tileSize tileSize)
@@ -179,7 +179,7 @@ viewPseudoNode
   -> V2 Int
   -> ViewerOptions
   -> View action
-viewPseudoNode m pn pos (ViewerOptions tileSize highlightColor) =
+viewPseudoNode m pn pos (ViewerOptions tileSize highlightColor _) =
   connectorWith color start end
   where
     unitSize = fromIntegral tileSize
@@ -222,7 +222,7 @@ viewGeneratorWith
 viewGeneratorWith m e g@(Generator size ports color name) pos' opts
   = 
   let
-      ViewerOptions tileSize _ = opts
+      ViewerOptions tileSize _ _ = opts
       pos = pos' * (V2 2 1)
       unitSize = fromIntegral tileSize
       height = unitSize * fromIntegral (Layout.generatorHeight g) :: Double

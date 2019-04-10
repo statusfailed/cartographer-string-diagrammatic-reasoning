@@ -17,10 +17,11 @@ import Cartographer.Types.Grid (Position)
 data ViewerOptions = ViewerOptions
   { tileSize       :: Int
   , highlightColor :: MisoString
+  , showGrid       :: Bool
   } deriving(Eq, Ord, Read, Show)
 
 defaultOptions :: ViewerOptions
-defaultOptions = ViewerOptions 50 "red"
+defaultOptions = ViewerOptions 50 "red" True
 
 -- | The viewer works with a concrete Generator type, which describes how
 -- it can be drawn
