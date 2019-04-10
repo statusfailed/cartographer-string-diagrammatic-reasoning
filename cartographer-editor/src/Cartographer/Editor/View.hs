@@ -27,7 +27,7 @@ view gs (Model layout actionState) = Miso.div_ []
 -- this consists of a "connect ports" button, and a number of generator
 -- buttons, which can be placed into the current diagram.
 toolbar :: [Generator] -> View Action
-toolbar gs = Miso.div_ [] $ connectButton : fmap generatorButton gs
+toolbar gs = Miso.div_ [] (fmap generatorButton gs)
 
 generatorButton :: Generator -> View Action
 generatorButton g = Miso.button_ [Miso.onClick (StartPlaceGenerator g)]
@@ -40,13 +40,6 @@ generatorButton g = Miso.button_ [Miso.onClick (StartPlaceGenerator g)]
       [ Svg.height_ (ms $ height * Viewer.tileSize opts)
       , Svg.width_ (ms $ Viewer.tileSize opts)
       ]
-
--- | The "connect ports" button.
--- NOTE: using "free icons" from http://xahlee.info/comp/unicode_arrows.html
-connectButton :: View Action
-connectButton = Miso.button_ [Miso.onClick StartConnect] [ icon ]
-  where
-    icon = "↦"
 
 -- | Show the viewer - the bottom pane. This just embeds the Viewer\'s action
 -- type into the Editor\'s action type.

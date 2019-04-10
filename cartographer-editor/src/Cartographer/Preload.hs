@@ -35,10 +35,10 @@ bialgebra = Theory (Set.fromList generators) axioms
       ]
 
 
-copy    = Generator (1,2) ([1], [0,2]) "red" "copy"
-discard = Generator (1,0) ([0], []) "red" "discard"
-add     = Generator (2,1) ([0,2], [1]) "lime" "add"
-unit    = Generator (0,1) ([], [0]) "lime" "unit"
+copy    = Generator (1,2) ([1], [0,2]) "lime" "copy"
+discard = Generator (1,0) ([0], []) "lime" "discard"
+add     = Generator (2,1) ([0,2], [1]) "red" "add"
+unit    = Generator (0,1) ([], [0]) "red" "unit"
 
 -- TODO: should not have to call recomputePseudoNodes here... gross.
 toLayout :: Layout.Generator sig => OpenHypergraph sig -> Layout sig
