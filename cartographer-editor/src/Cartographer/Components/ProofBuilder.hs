@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | ProofBuilder is a (stateful) component that capture the need to first
 -- construct a valid morphism before a Proof can be begun.
--- 
+--
 -- Two stages:
 --    1) Construct the "left hand side" of the proof
 --    2) When valid, turn it into a Proof and behave as ProofAssistant
@@ -59,7 +59,11 @@ view :: Proof.Theory Generator -> Model -> View Action
 view theory state = div_ [ class_ "box" ]
   [ case state of
       Preproof m -> viewPreproof theory m
-      Proving  m -> ProvingAction <$> ProofAssistant.view theory m
+      Proving  m -> viewProving theory m
+  ]
+
+viewProving theory m = div_ []
+  [ ProvingAction <$> ProofAssistant.view theory m
   , hr_ []
   , button_ [ class_ "button is-danger", onClick ClearProof ]
     [ "restart proof" ]
