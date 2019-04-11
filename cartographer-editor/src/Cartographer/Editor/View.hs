@@ -17,9 +17,9 @@ import Cartographer.Viewer (Generator(..))
 import qualified Cartographer.Viewer as Viewer
 
 view :: [Generator] -> Model -> View Editor.Action
-view gs (Model layout actionState) = Miso.div_ []
+view gs (Model layout actionState highlights) = Miso.div_ []
   [ toolbar gs
-  , viewer layout Viewer.defaultOptions
+  , viewer highlights layout Viewer.defaultOptions
   , infoFooter layout
   ]
 
@@ -43,8 +43,12 @@ generatorButton g = Miso.button_ [Miso.onClick (StartPlaceGenerator g)]
 
 -- | Show the viewer - the bottom pane. This just embeds the Viewer\'s action
 -- type into the Editor\'s action type.
-viewer :: Layout Generator -> Viewer.ViewerOptions -> View Action
-viewer layout opts = ViewerAction <$> Viewer.view layout opts
+viewer
+  :: Hypergraph.MatchState Generator
+  -> Layout Generator
+  -> Viewer.ViewerOptions
+  -> View Action
+viewer m layout opts = ViewerAction <$> Viewer.viewWith m layout opts
 
 -- | Show information about the hypergraph: its current dimensions, and whether
 -- or not it's "valid" - i.e., fully connected up.

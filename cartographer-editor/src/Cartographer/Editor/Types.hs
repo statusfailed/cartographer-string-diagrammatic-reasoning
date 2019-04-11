@@ -15,13 +15,14 @@ import Data.These
 data Model = Model
   { _modelLayout      :: Layout Generator
   , _modelActionState :: ActionState
+  , _modelHighlights  :: MatchState Generator
   } deriving(Eq, Ord, Show)
 
 fromLayout :: Layout Generator -> Model
-fromLayout l = Model l Done
+fromLayout l = Model l Done emptyMatchState
 
 emptyModel :: Model
-emptyModel = Model Layout.empty Done
+emptyModel = Model Layout.empty Done emptyMatchState
 
 -- | The set of actions in the Editor.
 -- Note that the action of "connecting ports" is decided based on the
@@ -33,17 +34,11 @@ data Action
 
 -- | 'ActionState' keeps track of what the user is trying to achieve for
 -- multi-state actions, such as connecting two ports.
---
--- TODO: remove this
--- Here's an example trace:
---  user clicks Connect tool:  (ConnectSource, NoResult)
---  user clicks a source port, s: (ConnectTarget s, NoResult)
---  user clicks a target port, t: (NoAction, connectPorts s t layout)
 data ActionState
   = Done
   -- ^ Nothing to do
-  | Connecting     (These (Port Source Open) (Port Target Open))
-  -- ^ Clicked a source and/or target port.
+  | Connecting     (V2 Int) (These (Port Source Open) (Port Target Open))
+  -- ^ Clicked a source and/or target port at a given position
   | PlaceGenerator Generator
   -- ^ Clicked a generator button
   deriving(Eq, Ord, Read, Show)

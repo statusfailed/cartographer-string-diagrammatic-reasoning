@@ -3,6 +3,14 @@ module Cartographer.Editor.Model where
 import Control.Monad
 import Control.Applicative
 
+import qualified Data.Bimap as Bimap
+
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+
+import Data.Bifunctor
+import Data.These
+
 import Miso.String (MisoString)
 import Data.Hypergraph
 import Linear.V2 (V2(..))
@@ -15,15 +23,54 @@ import qualified Cartographer.Viewer as Viewer
 
 import Cartographer.Editor.Types as Editor
 
-import Data.These
-
 -- | Update the Editor model without side-effects
 update :: Editor.Action -> Editor.Model -> Editor.Model
-update action (Model layout actionState) = case action of
+update action (Model layout actionState h) = case action of
   ViewerAction va ->
     let (as, f) = updateActionState actionState va
-    in  Model (f layout) as
-  StartPlaceGenerator g -> Model layout (PlaceGenerator g)
+        layout' = f layout
+        h' = highlights layout' as -- TODO: no need to recompute every time.
+    in  Model layout' as h'
+  StartPlaceGenerator g -> Model layout (PlaceGenerator g) h
+
+-- | Do we need to highlight anything? If so, put in a MatchState.
+-- A clicked source port will highlight all targets to its right, and
+-- a clicked target port will highlight all sources to its left.
+--
+-- NOTE: this function is kinda gross and could use a refactor.
+highlights :: Layout Generator -> ActionState -> MatchState Generator
+highlights layout Done = emptyMatchState
+highlights layout (PlaceGenerator _) = emptyMatchState
+highlights layout (Connecting (V2 x _) thesePorts) =
+  MatchState sourceMatches targetMatches Bimap.empty
+  where
+    (targetMatches, sourceMatches) = fromThese Bimap.empty Bimap.empty matchMaps
+    matchMaps =
+      bimap
+      (const highlightedTargets)
+      (const highlightedSources) -- clicked targets should highlight sources
+      thesePorts
+
+    -- list of generators
+    generators =
+      (Map.toList . signatures . Layout.hypergraph $ layout)
+
+    -- is a (HyperEdgeId, Signature) left of some coordinate x?
+    -- NOTE: dodgy x - 1 to convert from extended to grid coords.. not ideal!
+    isLeft (e,sig)
+      = maybe False (< V2 (x - 1) 0)
+      $ Layout.positionOf (Layout.TileHyperEdge e) layout
+    lefts = filter isLeft generators
+    highlightedSources = mkMap (lefts >>= uncurry sourcePorts)
+
+    isRight (e, sig)
+      = maybe False (> V2 (x - 1) 0)
+      $ Layout.positionOf (Layout.TileHyperEdge e) layout
+    rights = filter isRight generators
+    highlightedTargets = mkMap (rights >>= uncurry targetPorts)
+
+    mkMap ps = Bimap.fromList $ fmap (\p -> (p,p)) ps
+
 
 -- | A state machine for handling inputs
 -- TODO: this would be a billion times more readable with Lens.
@@ -32,13 +79,13 @@ updateActionState
   -> Viewer.Action
   -> (ActionState, Layout Generator -> Layout Generator)
 updateActionState Done a = case a of
-  Viewer.Action _ (Just (ClickedPorts _ t s)) ->
+  Viewer.Action _ (Just (ClickedPorts v t s)) ->
     case fromMaybes s t of
-      Just x  -> (Connecting x, id)
+      Just x  -> (Connecting v x, id)
       Nothing -> (Done, id)
   _ -> (Done,id)
 
-updateActionState (Connecting these) a = case a of
+updateActionState (Connecting _ these) a = case a of
   Viewer.Action _ (Just (ClickedPorts _ t s)) ->
     case fromMaybes s t of
       Just  x -> (Done, connectThesePorts these x)
@@ -102,7 +149,7 @@ positionedLeftOf layout s t = do
   return (s, t)
 
 
--- | Turned spaced coordinates into extended coordinates (see DESIGN.md)
+-- | Turn spaced coordinates into extended coordinates (see DESIGN.md)
 --
 -- TODO: this should probably go in Viewer, or ViewerAction should do it for
 -- us.

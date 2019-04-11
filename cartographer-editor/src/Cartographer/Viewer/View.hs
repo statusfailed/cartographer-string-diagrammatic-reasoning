@@ -7,7 +7,7 @@
 --
 -- The Cartographer.Layout keeps geometry information in "abstract"
 -- coordinates- an integer grid, with no space for wires.
--- 
+--
 -- Cartographer.Draw is a simpler interface to Layout- namely, the Renderable
 -- type can be used to draw all elements of the diagram individually.
 --
@@ -33,7 +33,7 @@ import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
 import Data.Hypergraph
-  ( HyperEdgeId, MatchState(..), emptyMatchState, Wire(..), Open(..))
+  ( HyperEdgeId, MatchState(..), emptyMatchState, Wire(..), Open(..), Port(..))
 import Cartographer.Layout (Layout, Tile(..))
 import qualified Cartographer.Layout as Layout
 
@@ -219,45 +219,52 @@ viewGeneratorWith
   -> Position
   -> ViewerOptions
   -> View action
-viewGeneratorWith m e g@(Generator size ports color name) pos' opts
-  = 
-  let
-      ViewerOptions tileSize _ _ = opts
-      pos = pos' * (V2 2 1)
-      unitSize = fromIntegral tileSize
-      height = unitSize * fromIntegral (Layout.generatorHeight g) :: Double
-      width  = unitSize
-      v@(V2 x y) = fmap ((*unitSize) . fromIntegral) pos
-      cx = x + width/2.0
-      cy = y + height/2.0
-      c = V2 cx cy
-
-      strokeColor = case Bimap.memberR e (_matchStateEdges m) of
-        True  -> highlightColor opts
-        False -> "black"
-
-  in
-    Svg.g_ [Svg.class_' "generator"]
-      [ Svg.rect_
-        [ Svg.width_ (ms width), Svg.height_ (ms height)
-        , Svg.x_ (ms x), Svg.y_ (ms y)
-        , Svg.stroke_ "transparent"
-        , Svg.strokeWidth_ "2"
-        , Svg.fill_ "transparent"
-        ] []
-        -- left ports
-      , Svg.g_ [] (fmap (viewGeneratorWire strokeColor v c unitSize) lports)
-        -- right ports
-      , Svg.g_ [] (fmap (viewGeneratorWire strokeColor v c unitSize) rports)
-      , Svg.circle_
-        [ Svg.cx_ (ms cx), Svg.cy_ (ms cy), Svg.r_ (ms $ unitSize / 8)
-        , Svg.stroke_ strokeColor, Svg.strokeWidth_ "2", Svg.fill_ color
-        ] []
-      ]
+viewGeneratorWith m e g@(Generator size ports genColor name) pos' opts =
+  Svg.g_ [Svg.class_' "generator"]
+    [ Svg.rect_
+      [ Svg.width_ (ms width), Svg.height_ (ms height)
+      , Svg.x_ (ms x), Svg.y_ (ms y)
+      , Svg.stroke_ "transparent"
+      , Svg.strokeWidth_ "2"
+      , Svg.fill_ "transparent"
+      ] []
+      -- left ports
+    , Svg.g_ [] (zipWith drawSourceWire [0..] (snd ports))
+      -- right ports
+    , Svg.g_ [] (zipWith drawTargetWire [0..] (fst ports))
+    , Svg.circle_
+      [ Svg.cx_ (ms cx), Svg.cy_ (ms cy), Svg.r_ (ms $ unitSize / 8)
+      , Svg.stroke_ genStrokeColor
+      , Svg.strokeWidth_ "2"
+      , Svg.fill_ genColor
+      ] []
+    ]
   where
-    lports = fmap Left (fst ports)
-    rports = fmap Right (snd ports)
+    ViewerOptions tileSize _ _ = opts
+    pos = pos' * (V2 2 1)
+    unitSize = fromIntegral tileSize
+    height = unitSize * fromIntegral (Layout.generatorHeight g) :: Double
+    width  = unitSize
+    v@(V2 x y) = fmap ((*unitSize) . fromIntegral) pos
+    cx = x + width/2.0
+    cy = y + height/2.0
+    c = V2 cx cy
 
+    genStrokeColor = case Bimap.memberR e (_matchStateEdges m) of
+      True  -> highlightColor opts
+      False -> "black"
+
+    drawSourceWire i offset =
+      let col = if Bimap.memberR (Port (Gen e) i) (_matchStatePortsSource m)
+                    then highlightColor opts
+                    else "black"
+      in  viewGeneratorWire col v c unitSize (Right offset)
+
+    drawTargetWire i offset =
+      let color = if Bimap.memberR (Port (Gen e) i) (_matchStatePortsTarget m)
+                    then highlightColor opts
+                    else "black"
+      in  viewGeneratorWire color v c unitSize (Left offset)
 
 -- | View the wires connecting a generator's central shape to its ports
 viewGeneratorWire

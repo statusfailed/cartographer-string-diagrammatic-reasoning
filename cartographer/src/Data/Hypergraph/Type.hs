@@ -16,6 +16,7 @@ module Data.Hypergraph.Type
   , Open(..)
   , Wire(..)
   , open
+  , portRole
   , toPortRole
   , isBoundary
   , toHyperEdgeId

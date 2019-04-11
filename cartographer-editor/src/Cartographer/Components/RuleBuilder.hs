@@ -47,4 +47,4 @@ fromRule :: Proof.Rule Generator -> Model
 fromRule (Proof.Rule l r) = (Editor.fromLayout l, Editor.fromLayout r)
 
 toRule :: Model -> Maybe (Proof.Rule Generator)
-toRule (Editor.Model l _, Editor.Model r _) = Proof.rule l r
+toRule (Editor.Model l _ _, Editor.Model r _ _) = Proof.rule l r
