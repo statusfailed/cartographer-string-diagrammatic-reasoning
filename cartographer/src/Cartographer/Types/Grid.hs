@@ -139,6 +139,13 @@ placeTile tile h v grid@(Grid eq) =
 removeTile :: Ord tile => tile -> Grid tile -> Grid tile
 removeTile t (Grid eq) = Grid (fst $ Equivalence.deleteClass t eq)
 
+moveTile :: Ord tile => tile -> Position -> Grid tile -> Grid tile
+moveTile t v g = placeTile t h v . removeTile t $ g
+  where h = Height . Set.size . positionsOf t $ g
+
+positionsOf :: Ord tile => tile -> Grid tile -> Set Position
+positionsOf t (Grid eq) = Equivalence.membersOf t eq
+
 -- | Get the least-offset position of a tile in a 'Grid'.
 -- In a left-to-right rendering, this means the topmost square of a tile.
 positionOf :: Ord tile => tile -> Grid tile -> Maybe Position

@@ -25,13 +25,17 @@ import Cartographer.Editor.Types as Editor
 
 -- | Update the Editor model without side-effects
 update :: Editor.Action -> Editor.Model -> Editor.Model
-update action (Model layout actionState h) = case action of
+update action m@(Model layout actionState h) = case action of
   ViewerAction va ->
     let (as, f) = updateActionState actionState va
         layout' = f layout
         h' = highlights layout' as -- TODO: no need to recompute every time.
     in  Model layout' as h'
   StartPlaceGenerator g -> Model layout (PlaceGenerator g) h
+  ClearDiagram -> emptyModel
+  StartDeleteGenerator -> m { _modelActionState = DeleteGenerator }
+  StartMoveGenerator   -> m { _modelActionState = MoveGenerator   }
+  StartDisconnect      -> m { _modelActionState = Disconnect      }
 
 -- | Do we need to highlight anything? If so, put in a MatchState.
 -- A clicked source port will highlight all targets to its right, and
@@ -39,8 +43,6 @@ update action (Model layout actionState h) = case action of
 --
 -- NOTE: this function is kinda gross and could use a refactor.
 highlights :: Layout Generator -> ActionState -> MatchState Generator
-highlights layout Done = emptyMatchState
-highlights layout (PlaceGenerator _) = emptyMatchState
 highlights layout (Connecting (V2 x _) thesePorts) =
   MatchState sourceMatches targetMatches Bimap.empty
   where
@@ -71,6 +73,9 @@ highlights layout (Connecting (V2 x _) thesePorts) =
 
     mkMap ps = Bimap.fromList $ fmap (\p -> (p,p)) ps
 
+-- All other states don\'t highlight.
+highlights layout _ = emptyMatchState
+
 
 -- | A state machine for handling inputs
 -- TODO: this would be a billion times more readable with Lens.
@@ -95,6 +100,31 @@ updateActionState (Connecting _ these) a = case a of
 updateActionState (PlaceGenerator g) a = case a of
   Viewer.Action pos _ ->
     (Done, insertSpacedCoordinates g pos)
+
+updateActionState DeleteGenerator a = case a of
+  Viewer.Action _ (Just (ClickedPorts _ t s)) ->
+    let me = (toHyperEdgeId =<< t) <|> (toHyperEdgeId =<< s)
+    in  (Done, maybe id Layout.deleteGenerator me)
+  _ -> (Done, id)
+
+updateActionState MoveGenerator a = case a of
+  Viewer.Action _ (Just (ClickedPorts _ t _)) ->
+    case t >>= toHyperEdgeId of
+      Just e -> (MoveGeneratorFrom (Layout.TileHyperEdge e), id)
+      Nothing -> (Done, id)
+
+  _ -> (Done, id)
+
+updateActionState (MoveGeneratorFrom tile) a = case a of
+  Viewer.Action _ (Just (ClickedPorts v _ _)) ->
+    (Done, Layout.move tile $ spacedToExtended v) -- fix coords + 'move' func.
+  _ -> (Done, id)
+
+updateActionState Disconnect a = case a of
+  Viewer.Action _ (Just (ClickedPorts _ t s)) ->
+    let f = maybe id Layout.disconnectSource s
+        g = maybe id Layout.disconnectTarget t
+    in  (Done, f . g)
 
 -- | Decide which ports a user intended to connect.
 -- Because a tile can have both an input and output port, we simply store both

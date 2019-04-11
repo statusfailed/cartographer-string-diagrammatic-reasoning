@@ -29,7 +29,11 @@ emptyModel = Model Layout.empty Done emptyMatchState
 -- 'Viewer.Action'.
 data Action
   = ViewerAction Viewer.Action
+  | ClearDiagram -- ^ clear the diagram
   | StartPlaceGenerator Generator
+  | StartDeleteGenerator  -- ^ start deleting a generator
+  | StartMoveGenerator    -- ^ start moving a generator
+  | StartDisconnect
   deriving(Eq, Ord, Read, Show)
 
 -- | 'ActionState' keeps track of what the user is trying to achieve for
@@ -41,4 +45,8 @@ data ActionState
   -- ^ Clicked a source and/or target port at a given position
   | PlaceGenerator Generator
   -- ^ Clicked a generator button
+  | DeleteGenerator
+  | MoveGenerator
+  | MoveGeneratorFrom (Layout.Tile HyperEdgeId)
+  | Disconnect
   deriving(Eq, Ord, Read, Show)

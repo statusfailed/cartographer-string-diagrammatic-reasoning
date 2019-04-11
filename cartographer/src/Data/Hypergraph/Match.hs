@@ -103,7 +103,7 @@ sigOf
   :: MonadReader (MatchEnv sig) m
   => (MatchEnv sig -> OpenHypergraph sig) -> HyperEdgeId -> m sig
 sigOf f e = do
-  sig <- reader (Map.lookup e . Hypergraph.signatures . f)
+  sig <- reader (Hypergraph.signatureOf e . f)
   case sig of
     Just x  -> return x
     -- TODO: remove evil partial functions.

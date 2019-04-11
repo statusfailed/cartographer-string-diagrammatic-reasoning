@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Cartographer.Editor.View where
 
-import Miso (View(..))
+import Miso
 import qualified Miso as Miso
 import qualified Miso.Svg as Svg
 import Miso.String (ms)
@@ -18,16 +18,32 @@ import qualified Cartographer.Viewer as Viewer
 
 view :: [Generator] -> Model -> View Editor.Action
 view gs (Model layout actionState highlights) = Miso.div_ []
-  [ toolbar gs
+  [ generatorBar gs
   , viewer highlights layout Viewer.defaultOptions
+  , toolbar
   , infoFooter layout
   ]
 
--- | Show the toolbar (above the viewer)
--- this consists of a "connect ports" button, and a number of generator
--- buttons, which can be placed into the current diagram.
-toolbar :: [Generator] -> View Action
-toolbar gs = Miso.div_ [] (fmap generatorButton gs)
+-- TODO: add is-focused class if the button is in its corresponding
+-- "ActionState"
+toolbar :: View Action
+toolbar = div_ [class_ "buttons"]
+  [ button_ [ class_ "button is-primary", onClick StartDeleteGenerator ]
+    [ "delete generator" ]
+  {-, button_ [ class_ "button is-primary", onClick StartMoveGenerator ]-}
+    {-[ "move" ]-}
+  , button_ [ class_ "button is-primary", onClick ClearDiagram ]
+    [ "clear diagram" ]
+  , button_ [ class_ "button is-primary", onClick StartDisconnect ]
+    [ "disconnect wires" ]
+  ]
+
+-- | Show the generator bar - a toolbar appearing above the viewer
+--
+-- this consists of a number of generator buttons, which can be placed into the
+-- current diagram.
+generatorBar :: [Generator] -> View Action
+generatorBar gs = Miso.div_ [] (fmap generatorButton gs)
 
 generatorButton :: Generator -> View Action
 generatorButton g = Miso.button_ [Miso.onClick (StartPlaceGenerator g)]

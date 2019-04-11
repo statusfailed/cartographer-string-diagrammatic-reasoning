@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# OPTIONS -Wall #-}
+{-# LANGUAGE FlexibleInstances #-}
 -- | The main interface for editing a Hypergraph via a UI.
 -- the 'Layout' type includes position and pseudonode information for each
 -- hyperedgein the graph, and provides methods for safely making changes to the underlying graph.
@@ -42,6 +42,11 @@ class Hypergraph.Signature sig => Generator sig where
   generatorInputs  :: sig -> [Int] -- ^ port offset of target ports
   generatorOutputs :: sig -> [Int] -- ^ port offset of source ports
 
+instance Generator (Int, Int) where
+  generatorHeight  (k,n) = max k n
+  generatorInputs  (k,n) = [0..k]
+  generatorOutputs (k,n) = [0..n]
+
 newtype Layer = Layer { unLayer :: Int }
   deriving(Eq, Ord, Read, Show, Enum, Num)
 
@@ -81,9 +86,20 @@ empty = Layout
   }
 
 -- | Width/Height of the Layout in tiles
--- TODO: account for number of boundary nodes
+-- NOTE: also has to account for number of boundary nodes
 dimensions :: Layout sig -> V2 Int
-dimensions = (V2 2 0 +) . Grid.dimensions . grid
+dimensions layout = V2 rx (maximum [ry, bsMax, btMax])
+  where
+    (V2 rx ry) = (V2 2 0 +) . Grid.dimensions . grid $ layout
+    conns = Bimap.toList . Hypergraph.connections . hypergraph $ layout
+    toIndex (Port _ i) = i
+
+    maxBoundary xs =
+      let ixs = (fmap toIndex . filter Hypergraph.isBoundary) xs
+      in  maybe 0 (+1) (safe maximum ixs)
+
+    bsMax = maxBoundary (map fst conns)
+    btMax = maxBoundary (map snd conns)
 
 -- | Look up what's at a particular position in the layout.
 -- If no generator or boundary was at that position, Nothing is returned.
@@ -255,7 +271,10 @@ canConnectPorts _ _ _ = True -- boundaries can always be connected.
 disconnectSource
   :: Port Source Open -> Layout sig -> Layout sig
 disconnectSource s l = case Hypergraph.target s (hypergraph l) of
-  Just t  -> foldl (flip removePseudoNode) l (connectionPseudoNodes s t l)
+  Just t  ->
+    let l' = foldl (flip removePseudoNode) l (connectionPseudoNodes s t l)
+    in  l' { hypergraph = Hypergraph.disconnectSource s (hypergraph l') }
+
   Nothing -> l
 
 -- | Remove all the pseudonodes for a given target port
@@ -263,7 +282,9 @@ disconnectSource s l = case Hypergraph.target s (hypergraph l) of
 disconnectTarget
   :: Port Target Open -> Layout sig -> Layout sig
 disconnectTarget t l = case Hypergraph.source t (hypergraph l) of
-  Just s  -> foldl (flip removePseudoNode) l (connectionPseudoNodes s t l)
+  Just s  ->
+    let l' = foldl (flip removePseudoNode) l (connectionPseudoNodes s t l)
+    in  l' { hypergraph = Hypergraph.disconnectTarget t (hypergraph l') }
   Nothing -> l
 
 -------------------------------
@@ -418,13 +439,56 @@ removePseudonodeOnlyLayers layout = layout
       . List.groupBy ((==) `on` layer) -- group by layer
       . Grid.occupiedTiles -- tiles, in order
 
--------------------------------
--- Post-MVP functionality
+-- | delete a generator from the Layout
+deleteGenerator
+  :: Generator sig
+  => HyperEdgeId -> Layout sig -> Layout sig
+deleteGenerator e l@(Layout hg g) = recomputePseudoNodes (Layout hg' g')
+  where
+    hg' = Hypergraph.deleteEdge e hg
+    g'  = Grid.removeTile (TileHyperEdge e) g
 
--- | Set a hyperedge's position.
+-- | Set a hyperedge's position, while maintaining the layering invariant.
+-- If necessary, delete wires that break the invariant
+-- TODO: bug!
+move
+  :: Generator sig => Tile HyperEdgeId -> Position -> Layout sig -> Layout sig
+move t@(TilePseudoNode _) v l = l { grid = grid' } where
+  grid' = Grid.moveTile t (v * V2 1 0) (grid l)
+move t@(TileHyperEdge e) v l =
+  recomputePseudoNodes . removeBackwardsConnections e v . updatePosition e v $ l
+  where
+    updatePosition e v m =
+      m { grid = Grid.moveTile (TileHyperEdge e) v (grid m) }
+
+-- | Given a hyperedge and its position in the grid, remove any connections
+-- that violate the layering invariant.
 --
--- Suppose an edge e has a parent p, and the user requests to move edge e to
--- layer x.
--- If L(e) >= x, then disconnect e from p.
-move :: HyperEdgeId -> Position -> Layout sig -> Layout sig
-move _ _ _ = undefined
+-- Again, kinda gross implementation.
+removeBackwardsConnections
+  :: Generator sig
+  => HyperEdgeId
+  -> Position
+  -> Layout sig
+  -> Layout sig
+removeBackwardsConnections e v l = ts . ss $ l
+  where
+    ts l = foldr disconnectTarget l (fmap snd outs)
+    ss l = foldr disconnectSource l (fmap fst ins)
+
+    invalid f p = maybe True f $ do
+      edge  <- Hypergraph.toHyperEdgeId p
+      pos   <- positionOf (TileHyperEdge edge) l
+      return pos
+
+    outs = filter (invalid (>=u). snd) $ Hypergraph.outputWires (hypergraph l) e
+    ins  = filter (invalid (<w) . fst) $ Hypergraph.inputWires  (hypergraph l) e
+    u = v * V2 1 0
+    w = u + V2 1 0
+
+-------------------------------
+-- Utilities
+
+safe :: ([a] -> a) -> [a] -> Maybe a
+safe _ [] = Nothing
+safe f xs = Just (f xs)

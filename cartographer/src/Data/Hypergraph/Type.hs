@@ -27,11 +27,14 @@ module Data.Hypergraph.Type
   , addEdge
   , deleteEdge
   , connect
+  , disconnectSource
+  , disconnectTarget
   , isConnectedTo
   , toWire
   , source
   , target
   , isComplete
+  , signatureOf
   , prettyPrint
   , prettyWires
   ) where
@@ -280,6 +283,22 @@ connect
 -- overwrites connection if p1 or p2 was already connected!
 connect p1 p2 hg = hg { connections = Bimap.insert p1 p2 (connections hg) }
 
+-- | Delete a connection by its 'Source' port.
+disconnectSource
+  :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
+  => Port Source f
+  -> Hypergraph f sig
+  -> Hypergraph f sig
+disconnectSource s hg = hg { connections = Bimap.delete s (connections hg) }
+
+-- | delete a connection by its 'Target' port.
+disconnectTarget
+  :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
+  => Port Target f
+  -> Hypergraph f sig
+  -> Hypergraph f sig
+disconnectTarget t hg = hg { connections = Bimap.deleteR t (connections hg) }
+
 -- | Is a source connected to a particular target in the hypergraph?
 isConnectedTo
   :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
@@ -318,6 +337,9 @@ isComplete hg = numPorts == 2 * numWires
     numWires = length (Bimap.toList $ connections hg)
     numPorts = foldl (\s (i,o) -> s + i + o) 0 allPorts
     allPorts = toSize hg : fmap toSize (toList $ signatures hg)
+
+signatureOf :: HyperEdgeId -> Hypergraph f sig -> Maybe sig
+signatureOf e hg = Map.lookup e (signatures hg)
 
 -------------------------------
 -- Pretty printing

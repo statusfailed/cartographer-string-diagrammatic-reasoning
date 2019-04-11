@@ -81,6 +81,10 @@ viewRenderableWith m (Renderable tiles wires dimensions) opts =
   -- NOTE: order here is very important for clickability!
   -- If anything is above clickableGridSquares, then not all squares are
   -- clickable!
+  -- NOTE: we also increase the grid height by an extra tile, so there are
+  -- always at least 2 grid squares high available for clicking - otherwise
+  -- it's very annoying to draw twists. Maybe in future its better to let the
+  -- user explicitly size the diagram?
   Svg.svg_ svgAttrs
     [ diagramStyle
     , if (showGrid opts) then rulers else Svg.g_ [] []
@@ -97,7 +101,7 @@ viewRenderableWith m (Renderable tiles wires dimensions) opts =
   -- intersperse a "wires" col between every generator
   -- NOTE: the (- V2 1 0) removes the final unnecessary "wires" column from the
   -- grid.
-    spacedDims = V2 2 1 * dimensions - V2 1 0
+    spacedDims = V2 2 1 * dimensions - V2 1 0 + V2 0 1
     scaledDims = fmap fromIntegral (tileSize opts *^ spacedDims)
     V2 imgWidth imgHeight = scaledDims + V2 0 unitSize
     svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]

@@ -113,7 +113,7 @@ sourcePorts
 sourcePorts e sig = fmap (Port (pure e)) [0..k - 1]
   where (_, k) = toSize sig
 
--- | A list of all target (inpu) ports of a hyperedge with a particular
+-- | A list of all target (input) ports of a hyperedge with a particular
 -- signature.
 targetPorts
   :: (Applicative f, Signature sig)
