@@ -5,6 +5,7 @@ import Miso
 import qualified Miso as Miso
 import qualified Miso.Svg as Svg
 import Miso.String (ms)
+import Data.String
 
 import qualified Data.Hypergraph as Hypergraph
 
@@ -17,8 +18,9 @@ import Cartographer.Viewer (Generator(..))
 import qualified Cartographer.Viewer as Viewer
 
 view :: [Generator] -> Model -> View Editor.Action
-view gs (Model layout actionState highlights) = Miso.div_ []
-  [ generatorBar gs
+view gs (Model layout actionState highlights) = Miso.div_ [ class_ "box" ]
+  [ sizeMsg (Hypergraph.toSize $ hypergraph layout)
+  , generatorBar gs
   , viewer highlights layout Viewer.defaultOptions
   , toolbar
   , infoFooter layout
@@ -30,8 +32,8 @@ toolbar :: View Action
 toolbar = div_ [class_ "buttons"]
   [ button_ [ class_ "button is-primary", onClick StartDeleteGenerator ]
     [ "delete generator" ]
-  {-, button_ [ class_ "button is-primary", onClick StartMoveGenerator ]-}
-    {-[ "move" ]-}
+--  , button_ [ class_ "button is-primary", onClick StartMoveGenerator ]
+--    [ "move" ]
   , button_ [ class_ "button is-primary", onClick ClearDiagram ]
     [ "clear diagram" ]
   , button_ [ class_ "button is-primary", onClick StartDisconnect ]
@@ -46,8 +48,9 @@ generatorBar :: [Generator] -> View Action
 generatorBar gs = Miso.div_ [] (fmap generatorButton gs)
 
 generatorButton :: Generator -> View Action
-generatorButton g = Miso.button_ [Miso.onClick (StartPlaceGenerator g)]
-  [ Svg.svg_ attrs [ Viewer.viewGenerator g 0 opts ] ]
+generatorButton g =
+  Miso.button_ [class_ "button", Miso.onClick (StartPlaceGenerator g)]
+    [ Svg.svg_ attrs [ Viewer.viewGenerator g 0 opts ] ]
   where
     -- TODO: dont hardcode?
     opts   = Viewer.defaultOptions { Viewer.tileSize = 20 }
@@ -70,7 +73,13 @@ viewer m layout opts = ViewerAction <$> Viewer.viewWith m layout opts
 -- or not it's "valid" - i.e., fully connected up.
 infoFooter :: Layout Generator -> View Action
 infoFooter layout = Miso.div_ []
-  [ Miso.h1_ [] [ Miso.text (ms . show $ Hypergraph.toSize hg)]
-  , Miso.h1_ [] [ Miso.text (if Hypergraph.isComplete hg then "Valid" else "Invalid") ]
-  ]
-  where hg = hypergraph layout
+  [ if Hypergraph.isComplete hg then div_ [] [] else warningMsg ]
+  where
+    hg = hypergraph layout
+    warningMsg =
+      div_ [ class_ "notification is-warning" ]
+        [ "diagram contains unconnected ports" ]
+
+sizeMsg (k,n) =
+  div_ [ class_ "notification is-info" ]
+    [ fromString $ "type: " ++ show k ++ " → " ++ show n ]

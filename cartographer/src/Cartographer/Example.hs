@@ -48,7 +48,7 @@ copyDiscard
   . connectPorts (Port Boundary 0) (Port (Gen 0) 0)
   . connectPorts (Port (Gen 0) 1) (Port Boundary 0)
   . connectPorts (Port (Gen 0) 0) (Port (Gen 1) 0)
-  . snd . placeGenerator Discard (V2 1 0)
+  . snd . placeGenerator Discard (V2 2 0)
   . snd . placeGenerator Copy (V2 0 0)
   $ Layout.empty
 
@@ -83,7 +83,7 @@ prettyGrid (Grid.Grid (Equivalence.Equivalence cls ms)) =
   uncurry f =<< Map.toList ms
   where
     f (TileHyperEdge  (HyperEdgeId e)) vs = show e ++ "  ->  " ++ show vs ++ "\n"
-    f (TilePseudoNode _)               vs = "P  ->  " ++ show vs ++ "\n"
+    f (TilePseudoNode pn) vs = "P " ++ " ->  " ++ show vs ++ "\n"
 
 prettyLayout :: Show sig => Layout sig -> String
 prettyLayout (Layout hg g)

@@ -33,7 +33,8 @@ view gs (l, r) = div_ [ Miso.class_ "message is-info" ]
     , button_ [ class_ "delete" ] [] -- TODO: hook this up
     ]
   , div_ [ class_ "message-body" ]
-    [ div_ [ class_ "columns" ]
+    [ diagnostic (l, r)
+    , div_ [ class_ "columns" ]
       [ col . box $ Left  <$> Editor.view gs l
       , col . box $ Right <$> Editor.view gs r
       ]
@@ -42,6 +43,12 @@ view gs (l, r) = div_ [ Miso.class_ "message is-info" ]
   where
     col = div_ [ class_ "column" ] . pure
     box = div_ [ class_ "box" ] . pure
+    diagnostic m = case toRule m of
+      Just _  -> div_ [] []
+      Nothing -> invalidRule
+
+    invalidRule = div_ [ class_ "notification is-warning" ]
+      [ "incomplete rule! do your types match?" ]
 
 fromRule :: Proof.Rule Generator -> Model
 fromRule (Proof.Rule l r) = (Editor.fromLayout l, Editor.fromLayout r)

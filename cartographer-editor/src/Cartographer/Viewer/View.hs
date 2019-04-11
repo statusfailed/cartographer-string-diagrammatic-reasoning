@@ -86,8 +86,7 @@ viewRenderableWith m (Renderable tiles wires dimensions) opts =
   -- it's very annoying to draw twists. Maybe in future its better to let the
   -- user explicitly size the diagram?
   Svg.svg_ svgAttrs
-    [ diagramStyle
-    , if (showGrid opts) then rulers else Svg.g_ [] []
+    [ if (showGrid opts) then rulers else Svg.g_ [] []
     , Svg.g_ [] (fmap g wires)
     , Svg.g_ [] (fmap f tiles)
     , clickableGridSquares spacedDims unitSize
@@ -283,21 +282,3 @@ viewGeneratorWire color x cx unitSize port =
   where
     px = either (const 0) (const unitSize) port
     py = (+ unitSize/2.0) . (*unitSize) . fromIntegral $ either id id port
-
-
--------------------------------
--- Constants
-
-diagramStyle :: View action
-diagramStyle = Svg.style_ [Svg.type_' "text/css"] [staticCss]
-
--- TODO
-staticCss :: IsString s => s
-staticCss =
-  ".generator:hover > rect {\
-  \  stroke: #dddddd;\
-  \}\
-  \ \
-  \.clickTarget:hover {\
-  \  fill: red;\
-  \}"

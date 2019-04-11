@@ -175,7 +175,7 @@ offsetToPorts e i layout = case signature e layout of
 --
 -- If the generator would increase the size of the grid in the X direction,
 -- insert new pseudonodes for every wire.
--- TODO: this is ridiculously inefficient; we can simply add new pseudonodes as
+-- TODO: this is ridiculously inefficient
 placeGenerator
   :: Generator sig
   => sig
@@ -210,7 +210,7 @@ recomputePseudoNodes l = foldr (uncurry connectPorts) l wires
 --
 -- TODO:
 -- If any of the following are true, the connection is not made:
---    * ports are invalid (TODO)
+--    * ports are invalid
 --    * L(target) <= L(source)
 --
 -- Additionally, A maximum if L(target) - L(source) - 1 pseudonodes are
@@ -240,8 +240,6 @@ connectPorts s t layout
         then disconnectTarget t l
         else l
 
-    -- TODO: this should be portPosition if we want the pseudo to appear at the
-    -- same y-coordinate as the port.
     base l = maybe err id (portPosition s l)
       where err = error $ "connectPorts: lookup error " ++ show s
 
@@ -450,11 +448,11 @@ deleteGenerator e l@(Layout hg g) = recomputePseudoNodes (Layout hg' g')
 
 -- | Set a hyperedge's position, while maintaining the layering invariant.
 -- If necessary, delete wires that break the invariant
--- TODO: bug!
+-- TODO: bug!?!?!?
 move
   :: Generator sig => Tile HyperEdgeId -> Position -> Layout sig -> Layout sig
 move t@(TilePseudoNode _) v l = l { grid = grid' } where
-  grid' = Grid.moveTile t (v * V2 1 0) (grid l)
+  grid' = Grid.moveTile t (v * V2 0 1) (grid l)
 move t@(TileHyperEdge e) v l =
   recomputePseudoNodes . removeBackwardsConnections e v . updatePosition e v $ l
   where
@@ -471,20 +469,17 @@ removeBackwardsConnections
   -> Position
   -> Layout sig
   -> Layout sig
-removeBackwardsConnections e v l = ts . ss $ l
+removeBackwardsConnections e (V2 x _) l
+  = foldr disconnectSource l (fmap fst $ os ++ is)
   where
-    ts l = foldr disconnectTarget l (fmap snd outs)
-    ss l = foldr disconnectSource l (fmap fst ins)
+    os = filter (invalid (x>=) . snd) $ Hypergraph.outputWires (hypergraph l) e
+    is = filter (invalid (x<=) . fst) $ Hypergraph.inputWires  (hypergraph l) e
 
-    invalid f p = maybe True f $ do
-      edge  <- Hypergraph.toHyperEdgeId p
-      pos   <- positionOf (TileHyperEdge edge) l
-      return pos
-
-    outs = filter (invalid (>=u). snd) $ Hypergraph.outputWires (hypergraph l) e
-    ins  = filter (invalid (<w) . fst) $ Hypergraph.inputWires  (hypergraph l) e
-    u = v * V2 1 0
-    w = u + V2 1 0
+    -- whether a wire is now invalid depends on its geometry.
+    invalid _ (Port Boundary _) = False
+    invalid f (Port (Gen e) _)  = maybe True f $ do
+      (V2 x' _) <- Grid.positionOf (TileHyperEdge e) (grid l)
+      return x'
 
 -------------------------------
 -- Utilities

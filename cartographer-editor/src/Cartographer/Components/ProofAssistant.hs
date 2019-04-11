@@ -54,7 +54,7 @@ view theory (Model proof highlight) = Miso.div_ []
   , const NoOp <$>
       Viewer.viewWith highlight (Proof._proofTerm proof) Viewer.defaultOptions
   , viewMatches theory proof
-  , Miso.button_ [ Miso.onClick Undo ] [ "undo" ]
+  , Miso.button_ [ class_ "button is-warning", Miso.onClick Undo ] [ "undo" ]
   ]
   where
     Proof _ steps = proof

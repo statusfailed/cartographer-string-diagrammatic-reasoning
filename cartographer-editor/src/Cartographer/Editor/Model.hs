@@ -23,6 +23,8 @@ import qualified Cartographer.Viewer as Viewer
 
 import Cartographer.Editor.Types as Editor
 
+import Debug.Trace (traceShow)
+
 -- | Update the Editor model without side-effects
 update :: Editor.Action -> Editor.Model -> Editor.Model
 update action m@(Model layout actionState h) = case action of
@@ -107,9 +109,10 @@ updateActionState DeleteGenerator a = case a of
     in  (Done, maybe id Layout.deleteGenerator me)
   _ -> (Done, id)
 
+-- TODO: bug here, if there's a generator having a tile without either a source or target, this will prevent the action triggering!
 updateActionState MoveGenerator a = case a of
-  Viewer.Action _ (Just (ClickedPorts _ t _)) ->
-    case t >>= toHyperEdgeId of
+  Viewer.Action _ (Just (ClickedPorts _ t s)) ->
+    case (t >>= toHyperEdgeId) <|> (s >>= toHyperEdgeId) of
       Just e -> (MoveGeneratorFrom (Layout.TileHyperEdge e), id)
       Nothing -> (Done, id)
 
@@ -117,7 +120,8 @@ updateActionState MoveGenerator a = case a of
 
 updateActionState (MoveGeneratorFrom tile) a = case a of
   Viewer.Action _ (Just (ClickedPorts v _ _)) ->
-    (Done, Layout.move tile $ spacedToExtended v) -- fix coords + 'move' func.
+    -- fix coords + 'move' func.
+    (Done, Layout.move tile $ spacedToExtended (v - V2 1 0))
   _ -> (Done, id)
 
 updateActionState Disconnect a = case a of
