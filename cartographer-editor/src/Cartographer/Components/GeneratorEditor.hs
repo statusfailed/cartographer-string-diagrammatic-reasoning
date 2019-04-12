@@ -27,15 +27,11 @@ emptyModel = Generator
 
 data Action
   = NoOp
-  | ValidationError MisoString -- ^ hacky!
   | SetColor        MisoString
   | SetName         MisoString
   | SetNumInput     Int
   | SetNumOutput    Int
   deriving(Eq, Ord, Read, Show)
-  -- TODO
-  {-| SetInputPorts   [Int]-}
-  {-| SetOutputPorts  [Int]-}
 
 update :: Action -> Model -> Model
 update a m = case a of

@@ -33,7 +33,9 @@ import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
 import Data.Hypergraph
-  ( HyperEdgeId, MatchState(..), emptyMatchState, Wire(..), Open(..), Port(..))
+  ( HyperEdgeId, MatchState(..), emptyMatchState, Wire(..), Open(..), Port(..)
+  , PortRole(..)
+  )
 import Cartographer.Layout (Layout, Tile(..))
 import qualified Cartographer.Layout as Layout
 
@@ -87,6 +89,7 @@ viewRenderableWith m (Renderable tiles wires dimensions) opts =
   -- user explicitly size the diagram?
   Svg.svg_ svgAttrs
     [ if (showGrid opts) then rulers else Svg.g_ [] []
+    , viewBoundaries spacedDims opts
     , Svg.g_ [] (fmap g wires)
     , Svg.g_ [] (fmap f tiles)
     , clickableGridSquares spacedDims unitSize
@@ -99,11 +102,59 @@ viewRenderableWith m (Renderable tiles wires dimensions) opts =
 
   -- intersperse a "wires" col between every generator
   -- NOTE: the (- V2 1 0) removes the final unnecessary "wires" column from the
-  -- grid.
+  -- grid, and the (+ V2 0 1) adds an extra row of tiles.
     spacedDims = V2 2 1 * dimensions - V2 1 0 + V2 0 1
     scaledDims = fmap fromIntegral (tileSize opts *^ spacedDims)
     V2 imgWidth imgHeight = scaledDims + V2 0 unitSize
     svgAttrs      = [ Svg.height_ (ms imgHeight), Svg.width_ (ms imgWidth) ]
+
+viewBoundaries :: V2 Int -> ViewerOptions -> View action
+viewBoundaries (V2 w h) opts =
+  Svg.g_ [ Svg.class_' "boundaries" ]
+    [ viewBoundaryBox (V2 0 $ h + 1) opts
+    , viewBoundaryBox (V2 (w-1) $ h + 1) opts
+    , Svg.g_ [ Svg.class_' "boundary-source" ] $
+      fmap (\y -> viewBoundaryPort Source (V2 0 y) opts) [0..h]
+    , Svg.g_ [ Svg.class_' "boundary-target" ] $
+      fmap (\y -> viewBoundaryPort Target (V2 (w-1) y) opts) [0..h]
+    ]
+
+viewBoundaryBox :: V2 Int -> ViewerOptions -> View action
+viewBoundaryBox (V2 x h) opts =
+  Svg.g_ [ Svg.class_' "boundary" ]
+    [ Svg.rect_
+      [ Svg.width_ . ms  $ tileSize opts
+      , Svg.height_ . ms $ tileSize opts * h
+      , Svg.x_ (ms $ fromIntegral x * tileSize opts)
+      , Svg.y_ "0"
+      , Svg.stroke_ "transparent"
+      , Svg.strokeWidth_ "2"
+      , Svg.fill_ "#eee"
+      ] []
+    ]
+
+viewBoundaryPort :: PortRole -> V2 Int -> ViewerOptions -> View action
+viewBoundaryPort role v' opts =
+  Svg.polygon_
+    [ Svg.points_ (ms $ points >>= pointStr)
+    , Svg.stroke_ "#aaa"
+    , Svg.fill_ "white"
+    ]
+  []
+  where
+    v = ((*z) . fromIntegral) <$> v'
+    z = fromIntegral (tileSize opts) :: Double
+    c = z / 2.0
+
+    xoff = case role of
+      Source -> z
+      Target -> 0
+
+    pointStr (V2 x y) = show x ++ "," ++ show y ++ " "
+    points = translate <$> [V2 x' c, V2 xoff (0.4*z), V2 xoff (0.6*z)]
+      where x' = abs (xoff - 0.25*z) -- cheeky
+    translate = (+ v)
+
 
 viewTile
   :: MatchState Generator

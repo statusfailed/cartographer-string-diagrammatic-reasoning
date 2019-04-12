@@ -35,14 +35,13 @@ view gs (l, r) = div_ [ Miso.class_ "message is-info" ]
   , div_ [ class_ "message-body" ]
     [ diagnostic (l, r)
     , div_ [ class_ "columns" ]
-      [ col . box $ Left  <$> Editor.view gs l
-      , col . box $ Right <$> Editor.view gs r
+      [ col $ Left  <$> Editor.view gs l
+      , col $ Right <$> Editor.view gs r
       ]
     ]
   ]
   where
     col = div_ [ class_ "column" ] . pure
-    box = div_ [ class_ "box" ] . pure
     diagnostic m = case toRule m of
       Just _  -> div_ [] []
       Nothing -> invalidRule

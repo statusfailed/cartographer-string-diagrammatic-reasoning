@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists   #-}
 module Cartographer.Editor.View where
 
 import Miso
@@ -45,12 +46,14 @@ toolbar = div_ [class_ "buttons"]
 -- this consists of a number of generator buttons, which can be placed into the
 -- current diagram.
 generatorBar :: [Generator] -> View Action
-generatorBar gs = Miso.div_ [] (fmap generatorButton gs)
+generatorBar gs =
+  div_ [class_ "generator-bar"] (fmap generatorButton gs)
 
 generatorButton :: Generator -> View Action
 generatorButton g =
-  Miso.button_ [class_ "button", Miso.onClick (StartPlaceGenerator g)]
-    [ Svg.svg_ attrs [ Viewer.viewGenerator g 0 opts ] ]
+  div_ [class_ "generator-button", Miso.onClick (StartPlaceGenerator g)]
+    [ div_ [class_ "box"] [ Svg.svg_ attrs [ Viewer.viewGenerator g 0 opts ] ]
+    ]
   where
     -- TODO: dont hardcode?
     opts   = Viewer.defaultOptions { Viewer.tileSize = 20 }

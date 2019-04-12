@@ -7,3 +7,16 @@ h1.headline {
   width: 100%;
   font-size: 3em;
 }
+
+div.generator-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center; /* make images vertically aligned */
+  margin-bottom: 1em;
+}
+
+div.generator-button {
+  padding: 0.25em;
+  flex: 25%;
+  text-align: center;
+}
