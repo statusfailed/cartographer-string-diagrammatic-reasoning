@@ -129,6 +129,7 @@ updateActionState Disconnect a = case a of
     let f = maybe id Layout.disconnectSource s
         g = maybe id Layout.disconnectTarget t
     in  (Done, f . g)
+  _ -> (Done, id)
 
 -- | Decide which ports a user intended to connect.
 -- Because a tile can have both an input and output port, we simply store both
