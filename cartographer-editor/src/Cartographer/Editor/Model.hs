@@ -5,7 +5,6 @@ import Control.Applicative
 
 import qualified Data.Bimap as Bimap
 
-import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
 import Data.Bifunctor
@@ -22,8 +21,6 @@ import Cartographer.Viewer (Generator(..), ClickedPorts(..))
 import qualified Cartographer.Viewer as Viewer
 
 import Cartographer.Editor.Types as Editor
-
-import Debug.Trace (traceShow)
 
 -- | Update the Editor model without side-effects
 update :: Editor.Action -> Editor.Model -> Editor.Model
@@ -61,13 +58,13 @@ highlights layout (Connecting (V2 x _) thesePorts) =
 
     -- is a (HyperEdgeId, Signature) left of some coordinate x?
     -- NOTE: dodgy x - 1 to convert from extended to grid coords.. not ideal!
-    isLeft (e,sig)
+    isLeft (e, _)
       = maybe False (< V2 (x - 1) 0)
       $ Layout.positionOf (Layout.TileHyperEdge e) layout
     lefts = filter isLeft generators
     highlightedSources = mkMap (lefts >>= uncurry sourcePorts)
 
-    isRight (e, sig)
+    isRight (e, _)
       = maybe False (> V2 (x - 1) 0)
       $ Layout.positionOf (Layout.TileHyperEdge e) layout
     rights = filter isRight generators
@@ -76,7 +73,7 @@ highlights layout (Connecting (V2 x _) thesePorts) =
     mkMap ps = Bimap.fromList $ fmap (\p -> (p,p)) ps
 
 -- All other states don\'t highlight.
-highlights layout _ = emptyMatchState
+highlights _ _ = emptyMatchState
 
 
 -- | A state machine for handling inputs
@@ -92,10 +89,10 @@ updateActionState Done a = case a of
       Nothing -> (Done, id)
   _ -> (Done,id)
 
-updateActionState (Connecting _ these) a = case a of
+updateActionState (Connecting _ thesePorts) a = case a of
   Viewer.Action _ (Just (ClickedPorts _ t s)) ->
     case fromMaybes s t of
-      Just  x -> (Done, connectThesePorts these x)
+      Just  x -> (Done, connectThesePorts thesePorts x)
       Nothing -> (Done, id)
   _ -> (Done, id)
 
@@ -198,7 +195,7 @@ spacedToExtended (V2 x y) = V2 (x `div` 2) y
 insertSpacedCoordinates
   :: Layout.Generator sig
   => sig -> V2 Int -> Layout sig -> Layout sig
-insertSpacedCoordinates g v@(V2 0 _) = id -- TODO: still ignore left boundary?
+insertSpacedCoordinates _ (V2 0 _) = id -- TODO: still ignore left boundary?
 insertSpacedCoordinates g v@(V2 x _) = snd . Layout.placeGenerator g v' . f
   where
     f = if odd x then Layout.insertLayer (Layout.Layer x') 1 else id
@@ -212,10 +209,12 @@ fromMaybes a b = case (a, b) of
   (Just x, Just y)  -> Just $ These x y
   _ -> Nothing
 
+justHere :: These a b -> Maybe a
 justHere (This x) = Just x
 justHere (These x _) = Just x
 justHere _ = Nothing
 
+justThere :: These a b -> Maybe b
 justThere (That y) = Just y
 justThere (These _ y) = Just y
 justThere _ = Nothing

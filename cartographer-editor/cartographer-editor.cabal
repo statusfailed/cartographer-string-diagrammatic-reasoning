@@ -17,6 +17,7 @@ cabal-version:       >=1.10
 
 executable cartographer-editor
   main-is:        Main.hs
+  ghc-options:    -fwarn-incomplete-patterns
   other-modules:  Cartographer.Components.Collapsible
                 , Cartographer.Components.GeneratorEditor
                 , Cartographer.Components.ProofAssistant
