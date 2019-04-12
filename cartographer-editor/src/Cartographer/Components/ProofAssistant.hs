@@ -51,17 +51,20 @@ update a m@(Model p h) = case a of
 view :: Theory Generator -> Model -> View Action
 view theory (Model proof highlight) = Miso.div_ []
   [ Miso.div_ [] (viewStep <$> reverse steps)
-  , const NoOp <$>
-      Viewer.viewWith highlight (Proof._proofTerm proof) Viewer.defaultOptions
-  , viewMatches theory proof
-  , Miso.button_ [ class_ "button is-warning", Miso.onClick Undo ] [ "undo" ]
+  , Miso.div_ [ class_ "box current-term" ]
+    [ const NoOp <$>
+        Viewer.viewWith highlight (Proof._proofTerm proof) Viewer.defaultOptions
+    , viewMatches theory proof
+    , Miso.button_ [ class_ "button is-warning", Miso.onClick Undo ] [ "undo" ]
+    ]
   ]
   where
     Proof _ steps = proof
 
 viewStep :: ProofStep Generator -> View Action
-viewStep (ProofStep term rule match) = Miso.div_ []
-  [ const NoOp <$> Viewer.viewWith match term Viewer.defaultOptions ]
+viewStep (ProofStep term rule match) =
+  Miso.div_ [ class_ "box step" ]
+    [ const NoOp <$> Viewer.viewWith match term Viewer.defaultOptions ]
 
 viewMatches :: Theory Generator -> Proof Generator -> View Action
 viewMatches theory proof = Miso.div_ attrs $
@@ -72,7 +75,7 @@ viewMatches theory proof = Miso.div_ attrs $
 -- subgraph of the current term when hovered.
 miniRule :: (Rule Generator, MatchState Generator) -> View Action
 miniRule rule@(Proof.Rule lhs rhs, m) =
-  div_  [ style_ [("flex", "20%"), ("max-width", "20%")]
+  div_  [ style_ [("flex", "25%"), ("max-width", "25%")]
         , class_ "box"
         , onMouseOver (SetHighlight m)
         , onMouseLeave (SetHighlight emptyMatchState)

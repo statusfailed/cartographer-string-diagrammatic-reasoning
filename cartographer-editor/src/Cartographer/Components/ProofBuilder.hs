@@ -69,7 +69,7 @@ viewProving theory m = div_ []
     [ "restart proof" ]
   ]
 
-viewPreproof theory m = div_ [ class_ "box" ]
+viewPreproof theory m = div_ []
   [ PreproofAction <$> Editor.view (toList $ Proof._theoryGenerators theory) m
   , Miso.button_ [class_ "button is-primary", onClick BeginProof]
     [ "begin proof" ]

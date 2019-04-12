@@ -44,9 +44,7 @@ update (Preload theory) _ = fromTheory theory
 
 view :: Model -> View Action
 view (Model s r) = Miso.div_ []
-  [ button_ [ class_ "button is-primary", onClick (Preload Preload.bialgebra) ]
-    [ "preload example theory" ]
-  , br_ []
+  [ preloadButton
   , box
     [ subtitle "signature"
     , Miso.div_ [] [ SignatureAction <$> Sequence.view GeneratorEditor.view  s ]
@@ -62,6 +60,14 @@ view (Model s r) = Miso.div_ []
     gs = toGenerators s
     subtitle s = h4_ [ class_ "subtitle is-4" ] [ s ]
     box = div_ [ class_ "box" ]
+
+preloadButton = div_ [ class_ "preload-button" ]
+  [ button_
+      [ class_ "button is-primary"
+      , onClick (Preload Preload.bialgebra)
+      ]
+    [ "load example theory" ]
+  ]
 
 toGenerators :: Sequence.Model GeneratorEditor.Model -> [Generator]
 toGenerators (Sequence.Model gs) = toList gs

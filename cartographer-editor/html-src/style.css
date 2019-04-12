@@ -1,4 +1,4 @@
-h1, h2, h3 {
+h1, h2 {
   font-family: 'Cinzel', serif;
 }
 
@@ -18,5 +18,19 @@ div.generator-bar {
 div.generator-button {
   padding: 0.25em;
   flex: 25%;
+  text-align: center;
+}
+
+.preload-button {
+  margin-bottom: 0.25em;
+}
+
+.step {
+  text-align: center;
+  margin-bottom: 1em;
+}
+
+.current-term {
+  margin-top: 1em;
   text-align: center;
 }
