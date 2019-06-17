@@ -35,10 +35,15 @@ instance Arbitrary Generator where
 
 tests = testGroup "Data.Hypergraph.Type"
   [ QC.testProperty "prop_singletonSize" prop_singletonSize
+  , QC.testProperty "prop_isComplete" prop_isComplete
   , QC.testProperty "prop_portsHaveConnections" prop_portsHaveConnections
+  , QC.testProperty "prop_connectionsHavePorts" prop_connectionsHavePorts 
   , QC.testProperty "prop_affineCompositionSize" prop_affineCompositionSize
-  , QC.testProperty "prop_monoidalProductType" prop_monoidalProductSize
+  , QC.testProperty "prop_monoidalProductSize" prop_monoidalProductSize
   ]
+
+prop_isComplete :: OpenHypergraph Generator -> Bool
+prop_isComplete = isComplete
 
 -- | Every port in a properly constructed 'OpenHypergraph' should be connected
 -- to another.
@@ -52,9 +57,17 @@ prop_portsHaveConnections a = all portsConnected (Map.toList $ signatures a)
 
 -- | Every connection in the hypergraph refers to a real port (i.e., the
 -- HyperEdgeId has a corresponding signature, and the port index is less than
--- or equal to that generator\'s size.)
+-- the generator\'s size.)
 prop_connectionsHavePorts :: OpenHypergraph Generator -> Bool
-prop_connectionsHavePorts = undefined
+prop_connectionsHavePorts g = all hasPorts (Bimap.toList $ connections g) where
+  hasPorts (source, target) = hasSource source && hasTarget target
+  hasSource (Port Boundary _) = True
+  hasSource (Port (Gen x) i) =
+    maybe False ((>i) . snd . toSize) (signatureOf x g)
+
+  hasTarget (Port Boundary _) = True
+  hasTarget (Port (Gen x) i) =
+    maybe False ((>i) . fst . toSize) (signatureOf x g)
 
 -- | The size of a "singleton" hypergraph is the same size as the one generator
 -- in that graph.

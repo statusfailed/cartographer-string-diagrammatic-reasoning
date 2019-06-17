@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 -- | Algebraically construct hypergraphs as monoidal categories.
@@ -6,8 +7,8 @@ module Data.Hypergraph.Algebraic
   , tensor
   , OpenHypergraph(..)
   , mapSourceBoundaryMonotonic
-  , mapTargetBoundary
-  , incrementHyperEdgeIds
+  , mapTargetBoundaryMonotonic
+  , rewire
   , reconnectSource
   {-, dual-}
   ) where
@@ -15,7 +16,7 @@ module Data.Hypergraph.Algebraic
 import Prelude hiding (id, (.))
 import Control.Category
 import Data.Monoid
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, isJust)
 
 import Data.Hypergraph.Type as Hypergraph
 import Data.Hypergraph.Unsafe (incrementHyperEdgeIds, mergeR)
@@ -65,11 +66,12 @@ a → bOld = Hypergraph cs ss (nextHyperEdgeId b)
     -- Renumber hyperedge Ids.
     -- log-linear in b' (rebuilds the entire connection bimap)
     b = incrementHyperEdgeIds (nextHyperEdgeId a) bOld
+    -- connections of b, but boundaries replaced with IDs of generators in a.
+    bcs = foldr (uncurry Bimap.insert) (connections b) (rewire a b)
 
     ss = Map.union (signatures a) (signatures b)
 
-    cs = foldr (uncurry Bimap.insert) (connections a) $
-      reconnectSource a <$> Bimap.toList (connections b)
+    cs = foldr (uncurry Bimap.insert) (connections a) (Bimap.toList bcs)
 
 -- | Monoidal product (×) of two hypergraphs.
 tensor :: OpenHypergraph sig -> OpenHypergraph sig -> OpenHypergraph sig
@@ -79,7 +81,6 @@ tensor a b' = a `mergeR` b where
     . mapTargetBoundaryMonotonic (+ m) -- ^ Boundary ports start from m
     . incrementHyperEdgeIds (nextHyperEdgeId a)
     $ b'
-
 -- | Map a monotonic function over the indexes of source boundary ports in an
 -- 'OpenHypergraph'
 mapSourceBoundaryMonotonic
@@ -117,3 +118,18 @@ reconnectSource a (s, t) = (s', t) where
     p@(Port Boundary i) ->
       maybe p id (Bimap.lookupR (Port Boundary i) (connections a))
     p -> p
+
+rewire :: OpenHypergraph sig -> OpenHypergraph sig -> [Wire Open]
+rewire a b = go 0
+  where
+    (ai, ao) = hypergraphSize a
+    (bi, bo) = hypergraphSize b
+
+    go i =
+      let s = Bimap.lookupR (Port Boundary i) (connections a)
+          t = Bimap.lookup  (Port Boundary i) (connections b)
+      in  case (s, t) of
+        (Nothing, Nothing) -> []
+        (Just s, Just t)   -> (s, t) : go (succ i)
+        (Just s, Nothing)  -> (s, Port Boundary (bo + i - bi)) : go (succ i)
+        (Nothing, Just t)  -> (Port Boundary (ai + i - ao), t) : go (succ i)
