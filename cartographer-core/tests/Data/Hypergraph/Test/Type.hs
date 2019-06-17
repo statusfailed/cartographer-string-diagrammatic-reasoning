@@ -82,11 +82,6 @@ prop_affineCompositionSize a b =
   where (i, n) = toSize a
         (m, o) = toSize b
 
--- | The nextHyperEdgeId field should be larger than any hyperedge appearing in
--- any of the connections or edge types.
--- prop_nextHyperEdgeIdSupremum :: OpenHypergraph sig -> Bool
--- prop_nextHyperEdgeIdSupremum g = undefined
-
 -- | Monoidal product of types (n → m) and (n' → m') should give
 -- type (n + n' → m + m')
 prop_monoidalProductSize
@@ -94,10 +89,3 @@ prop_monoidalProductSize
 prop_monoidalProductSize a b =
   toSize (a <> b) == toSize a +++ toSize b
   where (a,b) +++ (c,d) = (a+c, b+d)
-
--------------------------------
--- TODO: put these in Unsafe module tests.
-
--- | Incrementing hyperedge IDs means none are smaller than the increment value.
--- prop_incrementHyperEdgeIdMinimum :: OpenHypergraph sig -> Bool
--- prop_incrementHyperEdgeIdMinimum = undefined

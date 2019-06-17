@@ -9,7 +9,6 @@ module Data.Hypergraph.Algebraic
   , mapSourceBoundaryMonotonic
   , mapTargetBoundaryMonotonic
   , rewire
-  , reconnectSource
   {-, dual-}
   ) where
 
@@ -27,31 +26,15 @@ import qualified Data.Map as Map
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
-newtype SMC sig a b = SMC { runSMC :: OpenHypergraph sig }
-
 instance Semigroup (OpenHypergraph sig) where
   (<>) = tensor
 
 instance Monoid (OpenHypergraph sig) where
   mempty = Hypergraph.empty
 
-instance Category (SMC sig) where
-  id  = SMC Hypergraph.identity
-  SMC r . SMC l = SMC (l → r)
-
--- | Composition of two hypergraphs
---
--- 'compose a b' connects the right boundary of a to the left boundary of b.
--- 
--- If boundary sizes do not match up, the larger side will be connected to the
--- leftmost or rightmost boundary.
---compose :: OpenHypergraph sig -> OpenHypergraph sig -> OpenHypergraph sig
---compose l r =
---  where
---    lbs = [ Port Boundary i | i <- [0..] ]
-
--- | Append "b" to the right boundary of "a".
--- (log-linear in size of b?)
+-- | Sequentially compose two hypergraphs, even when types don\'t match.
+-- Wires left dangling as a result of mismatched types will automatically be
+-- connected to their corresponding boundary.
 --
 -- see wiki/ALGEBRAIC.md for implementation details
 --
@@ -81,6 +64,10 @@ tensor a b' = a `mergeR` b where
     . mapTargetBoundaryMonotonic (+ m) -- ^ Boundary ports start from m
     . incrementHyperEdgeIds (nextHyperEdgeId a)
     $ b'
+
+-------------------------------
+-- Utilities
+
 -- | Map a monotonic function over the indexes of source boundary ports in an
 -- 'OpenHypergraph'
 mapSourceBoundaryMonotonic
@@ -91,6 +78,7 @@ mapSourceBoundaryMonotonic f hg
     g (Port Boundary i) = Port Boundary (f i)
     g p = p
 
+-- | Same as mapSourceBoundaryMonotonic, but for target boundary.
 mapTargetBoundaryMonotonic
   :: (Int -> Int) -> OpenHypergraph sig -> OpenHypergraph sig
 mapTargetBoundaryMonotonic f hg
@@ -98,26 +86,6 @@ mapTargetBoundaryMonotonic f hg
   where
     g (Port Boundary i) = Port Boundary (f i)
     g p = p
-
--- | Flip all the arrows
-dual :: OpenHypergraph sig -> OpenHypergraph sig
-dual = undefined
-
--------------------------------
--- Utilities
-
--- | Given a Wire, if the source is a left boundary, replace it with the source
--- of the right boundary at the same index appearing in the supplied
--- 'OpenHypergraph'
-reconnectSource
-  :: OpenHypergraph sig
-  -> Wire Open
-  -> Wire Open
-reconnectSource a (s, t) = (s', t) where
-  s' = case s of
-    p@(Port Boundary i) ->
-      maybe p id (Bimap.lookupR (Port Boundary i) (connections a))
-    p -> p
 
 rewire :: OpenHypergraph sig -> OpenHypergraph sig -> [Wire Open]
 rewire a b = go 0
