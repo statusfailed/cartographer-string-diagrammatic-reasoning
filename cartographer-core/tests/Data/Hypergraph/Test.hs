@@ -1,10 +1,18 @@
-module Data.Hypergraph.Test where
+module Data.Hypergraph.Test
+  ( module Data.Hypergraph
+  , module Type
+  , mainTests
+  ) where
 
 import Test.Tasty
 import Test.Tasty.QuickCheck as QC
 
-import qualified Data.Hypergraph.Test.Type as Type
+import Data.Hypergraph
+import Data.Hypergraph.Test.Type as Type
 
-tests :: TestTree
-tests = testGroup "Data.Hypergraph"
+mainTests :: TestTree
+mainTests = testGroup "Data.Hypergraph"
   [ Type.tests ]
+
+main :: IO ()
+main = defaultMain mainTests

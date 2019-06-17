@@ -104,8 +104,17 @@ mapPortEdge f (Port x i) = Port (fmap f x) i
 -- | Merge one 'OpenHypergraph' into another.
 -- 'mergeR a b' will add all the edges and connections of b into a, without
 -- checking for overwriting, etc.
+-- nextHyperEdgeId is taken as the max of a and b.
 --
 -- You probably don't want to use this unless you know for sure the edge IDs
 -- are disjoint.
 mergeR :: OpenHypergraph sig -> OpenHypergraph sig -> OpenHypergraph sig
-mergeR a b = undefined
+mergeR a b = Hypergraph cs ss n
+  where
+    n  = max (nextHyperEdgeId a) (nextHyperEdgeId b)
+    cs = mergeBimap (connections a) (connections b)
+    ss = Map.union (signatures b) (signatures a) -- Map.union is left-biased.
+
+-- | 'mergeBimap a b' writes all the pairs from b into a.
+mergeBimap :: (Ord a, Ord b) => Bimap a b -> Bimap a b -> Bimap a b
+mergeBimap a b = foldr (uncurry Bimap.insert) a (Bimap.toList b)

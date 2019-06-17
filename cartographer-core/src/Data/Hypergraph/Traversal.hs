@@ -50,7 +50,9 @@ wireBfsAcyclic hg current =
 bfs :: Signature sig => OpenHypergraph sig -> [[Wire Open]]
 bfs hg = wireBfs hg Set.empty (start hg)
   where
-    -- start from the left boundary
+    -- start from the left boundary.
+    -- TODO: this is a really dumb way to get the left boundary.
+    -- for a n → m graph, just do n lookups for each Port Boundary [0..n]
     start = filter (isBoundary . fst) . Bimap.toList . connections
 
 bfsR :: Signature sig => OpenHypergraph sig -> [[Wire Open]]
@@ -121,7 +123,7 @@ targetPorts
 targetPorts e sig = fmap (Port (pure e)) [0..n - 1]
   where (n, _) = toSize sig
 
--- | Does a port have zero inputs
+-- | Does the hyperedge of a port have zero inputs
 isInitial :: Signature sig => OpenHypergraph sig -> Port a Open -> Bool
 isInitial hg (Port Boundary _) = True
 isInitial hg (Port (Gen e)  _) =

@@ -17,8 +17,8 @@ cabal-version:       >=1.10
 
 library
   exposed-modules: Data.Hypergraph
-  							 , Data.Hypergraph.Type
-  							 , Data.Hypergraph.Algebraic
+                 , Data.Hypergraph.Type
+                 , Data.Hypergraph.Algebraic
                  , Data.Hypergraph.Unsafe
                  , Data.Hypergraph.Match
                  , Data.Hypergraph.Rewrite
@@ -33,11 +33,18 @@ library
 
 test-suite test
   default-language: Haskell2010
-  type: 						exitcode-stdio-1.0
-  hs-source-dirs:		tests
-  main-is:					Test.hs
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   tests
+  main-is:          Test.hs
+  other-modules:
+    Data.Hypergraph.Test
+    Data.Hypergraph.Test.Arbitrary
+    Data.Hypergraph.Test.Type
   build-depends:
       base
+    , bimap
+    , containers
     , tasty
+    , QuickCheck
     , tasty-quickcheck
     , cartographer-core

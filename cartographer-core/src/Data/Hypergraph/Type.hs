@@ -24,7 +24,9 @@ module Data.Hypergraph.Type
   , empty
   , identity
   , twist
-  , maxBoundaryPorts
+  , singleton
+  , hypergraphSize
+  , maxBoundaryPorts -- TODO: remove
   , isPortOf
   , isConnectedTo
   , toWire
@@ -204,13 +206,25 @@ twist = Hypergraph conns Map.empty 0 where
     , (Port Boundary 1, Port Boundary 0)
     ]
 
+-- | Given a generator and its type, create a hypergraph consisting of only
+-- that generator with its ports connected in order to the boundary.
+singleton :: Signature sig => sig -> OpenHypergraph sig
+singleton s = Hypergraph conns (Map.singleton 0 s) 1 where
+  (n, m) = toSize s
+  conns = Bimap.fromList $
+    [ (Port Boundary i, Port (Gen 0) i) | i <- [0..n-1] ] ++
+    [ (Port (Gen 0) i, Port Boundary i) | i <- [0..m-1] ]
+
+{-# DEPRECATED maxBoundaryPorts "Renamed to hypergraphSize" #-}
+maxBoundaryPorts = hypergraphSize
+
 -- | The number of inputs and outputs of a hypergraph.
--- This is taken as the maximum connected boundary port, or zero if none are
--- connected.
+-- This is taken as one more than the maximum connected boundary port, or zero
+-- if none are connected.
 --
 -- TODO: reimplement more efficiently: look up boundary ports explicitly?
-maxBoundaryPorts :: Hypergraph Open sig -> (Int, Int)
-maxBoundaryPorts hg = (n, k)
+hypergraphSize :: Hypergraph Open sig -> (Int, Int)
+hypergraphSize hg = (n, k)
   where
     ws = (Bimap.toList . connections) hg
     ns = ws >>= f . fst

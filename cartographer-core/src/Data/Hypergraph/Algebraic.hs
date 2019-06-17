@@ -3,8 +3,12 @@
 -- | Algebraically construct hypergraphs as monoidal categories.
 module Data.Hypergraph.Algebraic
   ( (→)
-  , (×)
-  {-, (<|)-}
+  , tensor
+  , OpenHypergraph(..)
+  , mapSourceBoundaryMonotonic
+  , mapTargetBoundary
+  , incrementHyperEdgeIds
+  , reconnectSource
   {-, dual-}
   ) where
 
@@ -25,7 +29,7 @@ import qualified Data.Bimap as Bimap
 newtype SMC sig a b = SMC { runSMC :: OpenHypergraph sig }
 
 instance Semigroup (OpenHypergraph sig) where
-  (<>) = (×)
+  (<>) = tensor
 
 instance Monoid (OpenHypergraph sig) where
   mempty = Hypergraph.empty
@@ -56,46 +60,43 @@ instance Category (SMC sig) where
 -- It might be better to reimplement this, but I think handling as a special
 -- case makes it a bit faster?
 (→) :: OpenHypergraph a -> OpenHypergraph a -> OpenHypergraph a
-a → b' = Hypergraph cs ss (nextHyperEdgeId b)
+a → bOld = Hypergraph cs ss (nextHyperEdgeId b)
   where
     -- Renumber hyperedge Ids.
     -- log-linear in b' (rebuilds the entire connection bimap)
-    b = incrementHyperEdgeIds (nextHyperEdgeId a) b'
+    b = incrementHyperEdgeIds (nextHyperEdgeId a) bOld
 
     ss = Map.union (signatures a) (signatures b)
 
     cs = foldr (uncurry Bimap.insert) (connections a) $
       reconnectSource a <$> Bimap.toList (connections b)
-    
 
 -- | Monoidal product (×) of two hypergraphs.
-(×) :: OpenHypergraph sig -> OpenHypergraph sig -> OpenHypergraph sig
-a × b' = a `mergeR` b where
-  (n, m) = maxBoundaryPorts a
-  b = mapSourceBoundary (+ succ n)
-    . mapTargetBoundary (+ succ m)
+tensor :: OpenHypergraph sig -> OpenHypergraph sig -> OpenHypergraph sig
+tensor a b' = a `mergeR` b where
+  (n, m) = hypergraphSize a
+  b = mapSourceBoundaryMonotonic (+ n) -- ^ Boundary ports start from n
+    . mapTargetBoundaryMonotonic (+ m) -- ^ Boundary ports start from m
     . incrementHyperEdgeIds (nextHyperEdgeId a)
     $ b'
 
--- | Map a function over the indexes of source boundary ports in an
+-- | Map a monotonic function over the indexes of source boundary ports in an
 -- 'OpenHypergraph'
-mapSourceBoundary :: (Int -> Int) -> OpenHypergraph sig -> OpenHypergraph sig
-mapSourceBoundary f g = go 0 g where
-  go i (Hypergraph cs ss n) = 
-    case Bimap.lookup (Port Boundary i) cs of
-      Nothing -> g
-      Just t  ->
-        let cs' = Bimap.insert (Port Boundary (f i)) t cs 
-        in go (succ i) $ Hypergraph cs' ss n
+mapSourceBoundaryMonotonic
+  :: (Int -> Int) -> OpenHypergraph sig -> OpenHypergraph sig
+mapSourceBoundaryMonotonic f hg
+  = hg { connections = Bimap.mapMonotonic g (connections hg) }
+  where
+    g (Port Boundary i) = Port Boundary (f i)
+    g p = p
 
-mapTargetBoundary :: (Int -> Int) -> OpenHypergraph sig -> OpenHypergraph sig
-mapTargetBoundary f g = go 0 g where
-  go i (Hypergraph cs ss n) = 
-    case Bimap.lookupR (Port Boundary i) cs of
-      Nothing -> g
-      Just s  ->
-        let cs' = Bimap.insert s (Port Boundary (f i)) cs 
-        in go (succ i) $ Hypergraph cs' ss n
+mapTargetBoundaryMonotonic
+  :: (Int -> Int) -> OpenHypergraph sig -> OpenHypergraph sig
+mapTargetBoundaryMonotonic f hg
+  = hg { connections = Bimap.mapMonotonicR g (connections hg) }
+  where
+    g (Port Boundary i) = Port Boundary (f i)
+    g p = p
 
 -- | Flip all the arrows
 dual :: OpenHypergraph sig -> OpenHypergraph sig
@@ -116,21 +117,3 @@ reconnectSource a (s, t) = (s', t) where
     p@(Port Boundary i) ->
       maybe p id (Bimap.lookupR (Port Boundary i) (connections a))
     p -> p
-
--- | 'affinePair a b i' identifies the ith port of the right boundary of 'a'
--- with the ith port of the left boundary of 'b'.
---
--- 
-identifyBoundaryPort
-  :: OpenHypergraph sig
-  -> OpenHypergraph sig
-  -> Int
-  -> Maybe (Wire Open)
-identifyBoundaryPort a b i = case (ms, mt) of
-  (Nothing, Nothing)  -> Nothing
-  (Nothing, Just t)   -> Just (Port Boundary i, t)
-  (Just s, Nothing)   -> Just (s, Port Boundary i)
-  (Just s, Just t)    -> Just (s, t)
-  where
-    ms = Bimap.lookupR (Port Boundary i) (connections a) 
-    mt = Bimap.lookup  (Port Boundary i) (connections b)
