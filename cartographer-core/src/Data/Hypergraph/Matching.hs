@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE TupleSections          #-}
 module Data.Hypergraph.Matching where
 
 import Control.Monad
@@ -78,8 +79,34 @@ candidates
   => OpenHypergraph a
   -> OpenHypergraph a
   -> Matching a -> Wire Open -> f (Wire Open)
-candidates = undetermined
-  -- TODO: ^ make this faster
+candidates pattern context m w
+  = case (determined pattern context m w) of
+      Just w  -> pure w
+      Nothing -> undetermined pattern context m w
+
+-- | Return the context wire uniquely determined by a pattern wire.
+-- If no context wire is so determined, return Nothing.
+determined
+  :: OpenHypergraph a
+  -> OpenHypergraph a
+  -> Matching a
+  -> Wire Open
+  -> Maybe (Wire Open)
+determined pattern context m w@(s, t) =
+  case (counterpart s, counterpart t) of
+    (Nothing, Nothing) -> Nothing
+    (Just s', Nothing) -> (s',) <$> target s' context
+    (Nothing, Just t') -> (,t') <$> source t' context
+    (Just s', Just t') -> Just (s', t')
+
+  where
+    -- Given a port in the pattern, find its counterpart in the context by
+    -- simply looking up the hyperedge ID.
+    counterpart :: Port a Open -> Maybe (Port a Open)
+    counterpart (Port Boundary _) = Nothing
+    counterpart (Port (Gen e) i)  = do
+      e' <- Bimap.lookup e (_matchingEdges m)
+      return (Port (Gen e') i)
 
 -- If a wire is not uniquely determined by the current matching,
 -- this function will search for an appropriate unmatched wire

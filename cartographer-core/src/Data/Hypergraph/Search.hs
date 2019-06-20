@@ -27,9 +27,12 @@ undirectedDfs g = go Set.empty
       False -> cur : go (Set.insert cur visited) (adjacent g cur ++ stack)
 
 -- | Nodes that are one step away from the given node
+-- NOTE: we *dont* want to consider boundary ports to be adjacent!
 adjacent :: OpenHypergraph a -> Wire Open -> [Wire Open]
 adjacent g (Port s _, Port t _) =
-  uncurry (++) (wires g s) ++ uncurry (++) (wires g t)
+  uncurry (++) (f g s) ++ uncurry (++) (f g t)
+  where
+    f g s = open ([], [])  (wires g . Gen) s
 
 -- | Input and output wires of a given hyperedge.
 wires
