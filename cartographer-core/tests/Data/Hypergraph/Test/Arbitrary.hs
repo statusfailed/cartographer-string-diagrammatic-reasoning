@@ -31,3 +31,25 @@ generateSized n = do
   {-return (a → b)-}
   isCompose <- arbitrary
   return (if isCompose then a → b else a <> b)
+
+-------------------------------
+-- A Generator type for use in testing.
+
+-- | A test signature to try and capture many behaviours
+data Generator = Generator
+  { generatorFlag :: Int
+  , generatorType :: (Int, Int)
+  } deriving(Eq, Ord, Read, Show)
+
+instance Signature Generator where
+  toSize = generatorType
+
+-- | Generate small signatures, with 2 generators of each type from (
+instance Arbitrary Generator where
+  arbitrary = Generator <$> choose (0, 1) <*> randomType
+    where
+      randomType = do
+        k <- choose (1, 4) -- total number of ports
+        n <- choose (0, k) -- of which n are inputs
+        return (n, k - n)
+

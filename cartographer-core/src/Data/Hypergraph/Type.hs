@@ -22,6 +22,7 @@ module Data.Hypergraph.Type
   , toHyperEdgeId
   , Hypergraph(..)
   , empty
+  , Data.Hypergraph.Type.null
   , identity
   , twist
   , singleton
@@ -37,7 +38,7 @@ module Data.Hypergraph.Type
   , signatureOf
   ) where
 
-import Data.Foldable
+import Data.Foldable hiding (null)
 import Control.Applicative (liftA2)
 
 import Data.Map.Strict (Map)
@@ -61,7 +62,10 @@ instance Integral a => Signature (a, a) where
 -- | Uniquely identify each edge of a hypergraph.
 -- NOTE: Does not say what the "shape" of each generator is.
 newtype HyperEdgeId = HyperEdgeId { unHyperEdgeId :: Int }
-  deriving(Eq, Ord, Read, Show, Enum, Num)
+  deriving(Eq, Ord, Read, Enum, Num)
+
+instance Show HyperEdgeId where
+  show (HyperEdgeId i) = show i
 
 -- phantom types for type safety
 data Source
@@ -192,6 +196,9 @@ instance Signature sig => Signature (OpenHypergraph sig) where
 empty :: Hypergraph Open sig
 empty = Hypergraph Bimap.empty Map.empty 0
 
+null :: Hypergraph Open sig -> Bool
+null g = Map.null (signatures g) && Bimap.null (connections g)
+
 -- | The identity morphism
 identity :: Hypergraph Open sig
 identity = Hypergraph conns sigs 0
@@ -283,10 +290,9 @@ isComplete hg = numPorts == 2 * numWires
     numPorts = foldl (\s (i,o) -> s + i + o) 0 allPorts
     allPorts = toSize hg : fmap toSize (toList $ signatures hg)
 
--- | Get the signature of a hyperedge by its ID.
-edgeType :: HyperEdgeId -> Hypergraph f sig -> Maybe sig
-edgeType e hg = Map.lookup e (signatures hg)
+edgeType
+  :: Functor f => Hypergraph f sig -> f HyperEdgeId -> f (Maybe sig)
+edgeType g = fmap (\e -> signatureOf e g)
 
-{-# DEPRECATED edgeType "Renamed" #-}
 signatureOf :: HyperEdgeId -> Hypergraph f sig -> Maybe sig
-signatureOf = edgeType
+signatureOf e hg = Map.lookup e (signatures hg)

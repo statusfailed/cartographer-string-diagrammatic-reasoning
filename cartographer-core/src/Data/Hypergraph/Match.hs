@@ -8,6 +8,7 @@ module Data.Hypergraph.Match where
 
 import Data.Hypergraph.Type as Hypergraph
 import Data.Hypergraph.Traversal (wireBfs, outputWires)
+import Data.Hypergraph.Search (undirectedDfs, wires)
 
 import Data.Maybe (catMaybes)
 
@@ -278,6 +279,7 @@ match pattern graph
   . fmap snd $ runMatch pattern graph (matchAll ps)
   where
     -- TODO: for efficiency, use bfs instead of arbitrary order?
+    {-ps = fst <$> undirectedDfs pattern (Bimap.toList $ connections pattern)-}
     ps = Bimap.keys (connections pattern)
 
 -------------------------------
@@ -294,7 +296,7 @@ match pattern graph
 --  A is the set of non-match nodes reachable from inside the matched pattern
 --  B is the set of     match nodes reachable from A
 isConvex :: Signature sig => MatchState sig -> OpenHypergraph sig -> Bool
-isConvex m hg = null e
+isConvex m hg = Prelude.null e
   where
     -- starting set of wires
     s = rightBoundaryOutputWires m hg

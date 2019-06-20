@@ -7,28 +7,9 @@ import Test.Tasty.QuickCheck as QC
 import qualified Data.Map.Strict as Map
 import qualified Data.Bimap as Bimap
 
-import Data.Hypergraph.Test.Arbitrary
-
+import Data.Hypergraph.Test.Arbitrary 
 import Data.Hypergraph
 import Data.Hypergraph.Traversal
-
--- | A test signature to try and capture many behaviours
-data Generator = Generator
-  { generatorFlag :: Int
-  , generatorType :: (Int, Int)
-  } deriving(Eq, Ord, Read, Show)
-
-instance Signature Generator where
-  toSize = generatorType
-
--- | Generate small signatures, with 2 generators of each type from (
-instance Arbitrary Generator where
-  arbitrary = Generator <$> choose (0, 1) <*> randomType
-    where
-      randomType = do
-        k <- choose (1, 4) -- total number of ports
-        n <- choose (0, k) -- of which n are inputs
-        return (n, k - n)
 
 -------------------------------
 -- Tests

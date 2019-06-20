@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                cartographer-core
-version:             0.1.0.2
+version:             0.1.0.0
 -- synopsis:            
 -- description:         
 license:             MIT
@@ -20,11 +20,13 @@ library
                  , Data.Hypergraph.Type
                  , Data.Hypergraph.Algebraic
                  , Data.Hypergraph.Unsafe
-                 , Data.Hypergraph.Match
-                 , Data.Hypergraph.Rewrite
+                 , Data.Hypergraph.Matching
+                 --, Data.Hypergraph.Match
+                 --, Data.Hypergraph.Rewrite
                  , Data.Hypergraph.Traversal
-                 , Data.Hypergraph.Layer
-                 , Data.Hypergraph.Examples
+                 , Data.Hypergraph.Search
+                 -- , Data.Hypergraph.Layer
+                 -- , Data.Hypergraph.Examples
   -- other-extensions:    
   build-depends:       base, array, containers, linear, bimap
                      , mtl, logict, reflection
@@ -40,6 +42,7 @@ test-suite test
     Data.Hypergraph.Test
     Data.Hypergraph.Test.Arbitrary
     Data.Hypergraph.Test.Type
+    Data.Hypergraph.Test.Match
   build-depends:
       base
     , bimap
