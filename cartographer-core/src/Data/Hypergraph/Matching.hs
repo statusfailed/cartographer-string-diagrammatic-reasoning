@@ -1,3 +1,5 @@
+{-# LANGUAGE Strict #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE PartialTypeSignatures  #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE FlexibleContexts       #-}
@@ -13,14 +15,13 @@ import qualified Control.Applicative as A
 import Data.Hypergraph.Type as Hypergraph hiding (empty)
 import Data.Hypergraph.Search (undirectedDfs)
 
+import Data.List (foldl')
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
-import Debug.Trace
-
 -- | Nondeterministically choose an item from the list.
 choice :: MonadLogic f => [a] -> f a
-choice = foldl interleave mzero . fmap pure
+choice = foldl' interleave mzero . fmap pure
 
 data Matching a = Matching
   { _matchingWires :: Bimap (Wire Open) (Wire Open)
@@ -35,7 +36,7 @@ match
   => OpenHypergraph a -> OpenHypergraph a -> [Matching a]
 match pattern context
   | Hypergraph.null pattern = pure empty -- empty pattern => empty matching
-  | otherwise               = foldM (matchWire pattern context) empty wires
+  | otherwise = foldM (matchWire pattern context) empty wires
   where
     wires = undirectedDfs pattern (Bimap.toList $ connections pattern)
 

@@ -28,6 +28,7 @@ library
                  -- , Data.Hypergraph.Layer
                  -- , Data.Hypergraph.Examples
   -- other-extensions:    
+  ghc-options: -O2
   build-depends:       base, array, containers, linear, bimap
                      , mtl, logict, reflection
   hs-source-dirs:      src
@@ -38,6 +39,7 @@ test-suite test
   type:             exitcode-stdio-1.0
   hs-source-dirs:   tests
   main-is:          Test.hs
+  ghc-options: -O2
   other-modules:
     Data.Hypergraph.Test
     Data.Hypergraph.Test.Arbitrary

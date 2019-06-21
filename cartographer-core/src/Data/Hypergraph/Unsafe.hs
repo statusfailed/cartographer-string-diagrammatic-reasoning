@@ -4,10 +4,12 @@ module Data.Hypergraph.Unsafe
   , deleteEdge
   , connect
   , incrementHyperEdgeIds
+  , mapPortEdge
   , mergeR
   ) where
 
 import Data.Hypergraph.Type as Hypergraph
+import Data.List (foldl')
 
 import Control.Arrow ((***))
 
@@ -117,4 +119,4 @@ mergeR a b = Hypergraph cs ss n
 
 -- | 'mergeBimap a b' writes all the pairs from b into a.
 mergeBimap :: (Ord a, Ord b) => Bimap a b -> Bimap a b -> Bimap a b
-mergeBimap a b = foldr (uncurry Bimap.insert) a (Bimap.toList b)
+mergeBimap a b = foldl' (flip $ uncurry Bimap.insert) a (Bimap.toList b)

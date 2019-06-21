@@ -20,6 +20,7 @@ import Debug.Trace
 
 tests = testGroup "Data.Hypergraph.Match"
   [ QC.testProperty "prop_dfsAllConnections" prop_dfsAllConnections
+  , QC.testProperty "prop_completeSingletons" prop_completeSingletons
   , QC.testProperty "prop_matchSelf" prop_matchSelf
   , QC.testProperty "prop_matchTwice" prop_matchTwice
   , QC.testProperty "prop_matchSizeEqualsPatternSize"
@@ -45,6 +46,11 @@ graphSize g = (Bimap.size (connections g), Map.size (signatures g))
 
 -------------------------------
 -- Properties
+
+-- | Verify that composing two singleton hypergraphs is Complete.
+-- This test is redundant, but makes debugging much easier!
+prop_completeSingletons :: Generator -> Generator -> Bool
+prop_completeSingletons a b = isComplete (singleton a → singleton b)
 
 -- | A pattern always matches in itself at least once.
 -- It can be more - for example, (g <> g) will match at least twice in (g <> g)
@@ -112,12 +118,12 @@ prop_matchSingleton a g b = not . Prelude.null $ match s (a → s → b)
 -- Probably because we pick random connections out of a!!! DO THEM IN ORDER.
 prop_matchAfter
   :: OpenHypergraph Generator -> OpenHypergraph Generator -> Bool
-prop_matchAfter a b = 
+prop_matchAfter a b =
   let msg = "composed size " ++ show (toSize a) ++ ", " ++ show (toSize b) ++
             ", ngens: " ++ show (Map.size (signatures a)) ++
             ", " ++ show (Map.size (signatures b))
       composed = trace msg (a → b)
-  in  not . Prelude.null $ match a composed
+  in  not . Prelude.null $ match b (a → b)
 
 prop_matchSandwich
   :: OpenHypergraph Generator

@@ -1,3 +1,5 @@
+{-# LANGUAGE Strict #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -27,6 +29,8 @@ generateSized n = do
   a <- generateSized k
   b <- generateSized (n - k)
 
+  -- TODO: heavily favour composition; many monoidal products = slow matching.
+  -- frequency [(19, a → b), (1, a <> b)]
   isCompose <- arbitrary
   return (if isCompose then a → b else a <> b)
 

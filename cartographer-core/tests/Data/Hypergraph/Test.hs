@@ -86,3 +86,35 @@ twiceCase = match hg (hg <> hg) where
 selfCase = match hg hg where
   g = singleton (Generator 0 (1, 1))
   hg = g <> g
+
+-------------------------------
+-- Space leak debugging
+
+bigSize = do
+  t0 <- getCurrentTime
+  a <- generate (generateSized 50000 :: Gen (OpenHypergraph Generator))
+  p <- randomSingleton
+  let hg = (a → p → a)
+  t1 <- getCurrentTime
+  print (diffUTCTime t1 t0)
+
+  print (graphSize hg)
+  t2 <- getCurrentTime
+  print (diffUTCTime t2 t1)
+
+  print (take 1 $ match p hg)
+  t3 <- getCurrentTime
+  print (diffUTCTime t3 t2)
+
+composePerf = do
+  let chainLength = 10000
+  t0 <- getCurrentTime
+
+  -- NOTE: foldr here will just never finish XD
+  g1 <- foldl' (→) empty <$> replicateM chainLength randomSingleton
+  t1 <- getCurrentTime
+  print (diffUTCTime t1 t0)
+
+  print (graphSize g1)
+  t2 <- getCurrentTime
+  print (diffUTCTime t2 t1)
