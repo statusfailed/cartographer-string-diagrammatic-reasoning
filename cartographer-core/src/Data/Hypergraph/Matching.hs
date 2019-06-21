@@ -16,6 +16,8 @@ import Data.Hypergraph.Search (undirectedDfs)
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
+import Debug.Trace
+
 -- | Nondeterministically choose an item from the list.
 choice :: MonadLogic f => [a] -> f a
 choice = foldl interleave mzero . fmap pure

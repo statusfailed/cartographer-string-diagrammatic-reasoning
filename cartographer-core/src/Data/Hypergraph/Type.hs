@@ -153,7 +153,7 @@ type ClosedHypergraph sig = Hypergraph Identity sig
 -- | The type of "generators" in an open hypergraph.
 -- This type essentially extends the set of hyperedges with left boundary
 -- and a right boundary of arbitrary size.
-data Open a = Boundary | Gen a
+data Open a = Gen a | Boundary
   deriving(Eq, Ord, Read, Show)
 
 -- The obvious functor definition

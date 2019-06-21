@@ -20,24 +20,76 @@ import Debug.Trace
 
 tests = testGroup "Data.Hypergraph.Match"
   [ QC.testProperty "prop_dfsAllConnections" prop_dfsAllConnections
-  {-, QC.testProperty "prop_matchSelf" prop_matchSelf-}
+  , QC.testProperty "prop_matchSelf" prop_matchSelf
+  , QC.testProperty "prop_matchTwice" prop_matchTwice
+  , QC.testProperty "prop_matchSizeEqualsPatternSize"
+      prop_matchSizeEqualsPatternSize
+  , QC.testProperty "prop_emptyMatchesEverywhere" prop_emptyMatchesEverywhere
+  , QC.testProperty "prop_identityMatchesNonEmpty" prop_identityMatchesNonEmpty
   , QC.testProperty "prop_matchSingleton" prop_matchSingleton
   , QC.testProperty "prop_matchAfter" prop_matchAfter
   {-, QC.testProperty "prop_matchSandwich" prop_matchSandwich-}
   ]
 
--- | A pattern always matches in itself exactly once
--- TODO: make this exactly once; it's actually broken!!!!!!
-prop_matchSelf :: OpenHypergraph Generator -> Bool
-prop_matchSelf a = not . Prelude.null $ match a a -- 1 === length (match a a)
+-------------------------------
+-- Utils
+
+-- Size in nodes + edges of a Matching
+matchSize :: Matching a -> (Int, Int)
+matchSize (Matching w e) = (Bimap.size w, Bimap.size e)
+
+-- Size in nodes + edges of an OpenHypergraph
+-- TODO: "size" very overloaded!
+graphSize :: OpenHypergraph a -> (Int, Int)
+graphSize g = (Bimap.size (connections g), Map.size (signatures g))
+
+-------------------------------
+-- Properties
+
+-- | A pattern always matches in itself at least once.
+-- It can be more - for example, (g <> g) will match at least twice in (g <> g)
+-- because there are two choices for g. However, the matchings are effectively
+-- the same.
+prop_matchSelf :: OpenHypergraph Generator -> Property
+prop_matchSelf a = 1 === (length . take 1 $ match a a)
+
+-- | NOTE: this test length > 2 because of cases like the following:
+--
+--    a--R
+--    b--R
+--
+-- where a : (0, 1) and b : (0, 1).
+--
+-- in this case, if we tensor the graph with itself we get
+--
+--    a--R
+--    b--R
+--    a--R
+--    b--R
+--
+-- and there are two (valid) ways to assign the "a" type generators, and two
+-- (valid) ways to assign the "b" type generators - giving us 4 matchings!
+prop_matchTwice :: OpenHypergraph Generator -> Property
+prop_matchTwice a
+  =   (not . Data.Hypergraph.null $ a)
+  ==> length (take 2 (match a $ a → a)) === 2
+
+prop_matchSizeEqualsPatternSize
+  :: OpenHypergraph Generator -> OpenHypergraph Generator -> Property
+prop_matchSizeEqualsPatternSize a b =
+  let m = head $ match a (a → b)
+  in  graphSize a === matchSize m
 
 -- | The empty hypergraph matches in every hypergraph.
 prop_emptyMatchesEverywhere :: OpenHypergraph Generator -> Bool
-prop_emptyMatchesEverywhere = undefined
+prop_emptyMatchesEverywhere g = not . Prelude.null $ match empty g
 
--- | The identity wire should match in any non-empty hypergraph.
-prop_identityMatchesNonEmpty :: OpenHypergraph Generator -> Bool
-prop_identityMatchesNonEmpty = undefined
+-- | The identity wire should match in any non-empty hypergraph exactly as
+-- many times as that graph has connections.
+prop_identityMatchesNonEmpty :: OpenHypergraph Generator -> Property
+prop_identityMatchesNonEmpty g
+  =   (not . Data.Hypergraph.null $ g)
+  ==> Bimap.size (connections g) == length (match identity g)
 
 prop_dfsAllConnections :: OpenHypergraph Generator -> Property
 prop_dfsAllConnections g =

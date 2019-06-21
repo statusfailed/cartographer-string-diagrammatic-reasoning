@@ -1,6 +1,3 @@
-import Test.Tasty
-import Test.Tasty.QuickCheck as QC
+module Main (main) where
 
-import Data.Hypergraph.Test (tests)
-
-main = defaultMain tests
+import Data.Hypergraph.Test (main)

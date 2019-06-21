@@ -45,6 +45,7 @@ test-suite test
     Data.Hypergraph.Test.Match
   build-depends:
       base
+    , time
     , bimap
     , containers
     , tasty
