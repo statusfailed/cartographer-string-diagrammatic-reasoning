@@ -2,9 +2,25 @@
 
 Notes on the module `Data.Hypergraph.Algebraic`.
 
-# Composition, `(|>)`, and `(<|)`.
+# Composition, `→`
 
-We want "affine" compositions, which are a bit more convenient.
+In general, if we have two generators of different size,
+`a : ai → ao` and `b : bi → bo`,
+their "affine" composition is defined as
+
+    (a <> id n) ; (id m <> b)
+
+where
+
+    n = max 0 (bi - ao)
+    m = max 0 (ao - bi)
+
+(i.e., if bi > ao, we "make up for it" by adding identity wires to a, and if ao
+> bi, we add identities to b)
+
+## Diagrams
+
+"Affine" compositions are a bit more convenient for generating random graphs.
 Consider composing the `2 → 2` and `3 → 1` diagrams below, to get a diagram of
 type `3 → 1`.
 In general, composing `a → b` with `c → d` gives
@@ -26,28 +42,32 @@ In general, composing `a → b` with `c → d` gives
 
 In the reverse case:
 
-    L------o        L----\  o------R    
-    L----+----R     L-----\----+---R    
-    L---/                  ---/         
+    L------o        L----\  o------R
+    L----+----R     L-----\----+---R
+    L---/                  ---/
 
 
-    L------o        
-    L----+--------\  o------R    
-    L---/      ----\----+---R    
-              /     ---/         
-    L--------/      
+    L------o
+    L----+--------\  o------R
+    L---/      ----\----+---R
+              /     ---/
+    L--------/
 
 We can also have more nodes on the right-boundary of the left graph, so
 composing a `2 → 2` graph with a `1 → 0` graph yields a `2 → 1` graph.
 
-    L----\  o------R    L------o        
-    L-----\----+---R
+    L0----\  o------R0
+    L1-----\----+---R1   L0------o
            ---/
 
-    L----\  o--------o        
-    L-----\----+--------R
+    L0----\  o-----------R0
+    L1-----\----+----o
            ---/
 
+Note how the RHS is pasted at the *bottom* of the LHS's right boundary!
+This is for efficiency reasons: if it were at the top, and the LHS had a very
+large boundary, we would have to rewrite the entire right boundary of the LHS-
+slow!
 
 ## Algorithm
 

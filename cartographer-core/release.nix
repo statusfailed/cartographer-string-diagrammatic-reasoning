@@ -1,8 +1,6 @@
 let
-  config = { };
-
-  pkgs = import <nixpkgs> { inherit config; };
+  pkgs = import <nixpkgs> { };
 
 in
-  { cartographer-core = pkgs.haskellPackages.callPackage ./cartographer-core.nix { };
+  { cartographer-core = pkgs.profiledHaskellPackages.callPackage ./cartographer-core.nix { };
   }

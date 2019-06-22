@@ -123,7 +123,7 @@ prop_matchAfter a b =
             ", ngens: " ++ show (Map.size (signatures a)) ++
             ", " ++ show (Map.size (signatures b))
       composed = trace msg (a → b)
-  in  not . Prelude.null $ match b (a → b)
+  in  not . Prelude.null $ match b composed
 
 prop_matchSandwich
   :: OpenHypergraph Generator

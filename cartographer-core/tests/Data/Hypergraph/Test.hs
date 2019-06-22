@@ -90,11 +90,13 @@ selfCase = match hg hg where
 -------------------------------
 -- Space leak debugging
 
+-- about 5ms to match a size-5 pattern in a 100K size graph.
 bigSize = do
   t0 <- getCurrentTime
   a <- generate (generateSized 50000 :: Gen (OpenHypergraph Generator))
-  p <- randomSingleton
-  let hg = (a → p → a)
+  p <- generate (generateSized 5 :: Gen (OpenHypergraph Generator))
+  b <- generate (generateSized 50000 :: Gen (OpenHypergraph Generator))
+  let hg = (a → p → b)
   t1 <- getCurrentTime
   print (diffUTCTime t1 t0)
 
@@ -102,19 +104,38 @@ bigSize = do
   t2 <- getCurrentTime
   print (diffUTCTime t2 t1)
 
-  print (take 1 $ match p hg)
+  putStrLn $ "finding pattern size: " ++ show (hypergraphSize p)
+  print (take 2 $ match p hg)
   t3 <- getCurrentTime
   print (diffUTCTime t3 t2)
 
 composePerf = do
-  let chainLength = 10000
+  singletons <- replicateM 10000 randomSingleton
+  let silly (a,b) (c,d) = (a+c, b+d)
+  print $ foldl' silly (0,0) (toSize <$> singletons)
   t0 <- getCurrentTime
 
   -- NOTE: foldr here will just never finish XD
-  g1 <- foldl' (→) empty <$> replicateM chainLength randomSingleton
+  let g1 = foldl' (→) empty singletons
   t1 <- getCurrentTime
   print (diffUTCTime t1 t0)
 
   print (graphSize g1)
   t2 <- getCurrentTime
   print (diffUTCTime t2 t1)
+
+funPerf = do
+  t0 <- getCurrentTime
+  a <- generate (generateSized 100 :: Gen (OpenHypergraph Generator))
+  b <- generate (generateSized 100 :: Gen (OpenHypergraph Generator))
+  t1 <- getCurrentTime
+  print (diffUTCTime t1 t0)
+
+  let c = a → b
+  print (graphSize c)
+  t2 <- getCurrentTime
+  print (diffUTCTime t2 t1)
+
+  print (take 1 $ match b c)
+  t3 <- getCurrentTime
+  print (diffUTCTime t3 t2)
