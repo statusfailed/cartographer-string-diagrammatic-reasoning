@@ -1,4 +1,3 @@
-{-# LANGUAGE Strict #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -230,22 +229,16 @@ maxBoundaryPorts = hypergraphSize
 -- | The number of inputs and outputs of a hypergraph.
 -- This is taken as one more than the maximum connected boundary port, or zero
 -- if none are connected.
---
--- TODO: reimplement more efficiently: look up boundary ports explicitly?
 hypergraphSize :: Hypergraph Open sig -> (Int, Int)
-hypergraphSize hg = (n, k)
+hypergraphSize hg
+  | Bimap.null (connections hg) = (0, 0)
+  | otherwise                   = (i, o)
   where
-    ws = (Bimap.toList . connections) hg
-    ns = ws >>= f . fst
-    ks = ws >>= f . snd
+    i = fromPort . fst . Bimap.findMax  $ connections hg
+    o = fromPort . fst . Bimap.findMaxR $ connections hg
 
-    -- + 1 because ports are zero-indexed.
-    n = case ns of [] -> 0; xs -> maximum xs + 1
-    k = case ks of [] -> 0; xs -> maximum xs + 1
-
-    f :: Port a Open -> [Int]
-    f (Port Boundary i) = [i]
-    f _ = []
+    fromPort (Port Boundary i) = succ i
+    fromPort _ = 0
 
 -- | 'p `isPortOf` e' returns True if p is a port on the generator e
 isPortOf
