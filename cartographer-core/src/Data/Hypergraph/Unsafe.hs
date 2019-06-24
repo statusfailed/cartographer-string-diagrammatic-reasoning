@@ -3,9 +3,6 @@ module Data.Hypergraph.Unsafe
   ( addEdge
   , deleteEdge
   , connect
-  , incrementHyperEdgeIds
-  , mapPortEdge
-  , mergeR
   ) where
 
 import Data.Hypergraph.Type as Hypergraph
@@ -81,42 +78,3 @@ disconnectTarget
   -> Hypergraph f sig
   -> Hypergraph f sig
 disconnectTarget t hg = hg { connections = Bimap.deleteR t (connections hg) }
-
--------------------------------
--- Very unsafe functions
-
--- | Add a fixed, positive integer amount to all HyperEdgeIds.
---
--- NOTE: this only adds so we can use mapKeysMonotonic.  Since we're rebuilding
--- the Bimap anyway, we might as well generalize to any function?
-incrementHyperEdgeIds
-  :: HyperEdgeId -> OpenHypergraph sig -> OpenHypergraph sig
-incrementHyperEdgeIds k hg@(Hypergraph c s n)
-  | k <= 0 = hg
-  | otherwise = Hypergraph c' s' n'
-  where
-    c' = Bimap.fromList
-          (fmap (mapPortEdge (+k) *** mapPortEdge (+k)) . Bimap.toList $ c)
-    s' = Map.mapKeysMonotonic (+k) s
-    n' = k + n
-
-mapPortEdge :: Functor f => (HyperEdgeId -> HyperEdgeId) -> Port a f -> Port a f
-mapPortEdge f (Port x i) = Port (fmap f x) i
-
--- | Merge one 'OpenHypergraph' into another.
--- 'mergeR a b' will add all the edges and connections of b into a, without
--- checking for overwriting, etc.
--- nextHyperEdgeId is taken as the max of a and b.
---
--- You probably don't want to use this unless you know for sure the edge IDs
--- are disjoint.
-mergeR :: OpenHypergraph sig -> OpenHypergraph sig -> OpenHypergraph sig
-mergeR a b = Hypergraph cs ss n
-  where
-    n  = max (nextHyperEdgeId a) (nextHyperEdgeId b)
-    cs = mergeBimap (connections a) (connections b)
-    ss = Map.union (signatures b) (signatures a) -- Map.union is left-biased.
-
--- | 'mergeBimap a b' writes all the pairs from b into a.
-mergeBimap :: (Ord a, Ord b) => Bimap a b -> Bimap a b -> Bimap a b
-mergeBimap a b = foldl' (flip $ uncurry Bimap.insert) a (Bimap.toList b)

@@ -1,18 +1,12 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 -- | Algebraically construct hypergraphs as monoidal categories.
 module Data.Hypergraph.Algebraic
   ( (→)
-  , (⇒)
   , tensor
   , OpenHypergraph(..)
-  , mapSourceBoundaryMonotonic
-  , mapTargetBoundaryMonotonic
-  , rewire
-  , rewireRightWire
-  , rewireLeftWire
-  {-, dual-}
   ) where
 
 import Prelude hiding (id, (.))
@@ -22,9 +16,9 @@ import Control.Arrow
 import Data.Monoid
 import Data.Maybe (catMaybes, isJust)
 import Data.List (foldl')
+import Data.Reflection
 
 import Data.Hypergraph.Type as Hypergraph
-import Data.Hypergraph.Unsafe (incrementHyperEdgeIds, mapPortEdge, mergeR)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -32,17 +26,51 @@ import qualified Data.Map as Map
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
-import Debug.Trace
-
 instance Semigroup (OpenHypergraph sig) where
   (<>) = tensor
 
 instance Monoid (OpenHypergraph sig) where
   mempty = Hypergraph.empty
 
+tensor :: OpenHypergraph sig -> OpenHypergraph sig -> OpenHypergraph sig
+tensor a b = a
+  { connections = foldl' (flip $ uncurry Bimap.insert) (connections a) newWires
+  , signatures  = foldl' (flip $ uncurry Map.insert) (signatures a) newEdges
+  , nextHyperEdgeId = maxA + maxB
+  }
+  where
+    newEdges = (\(e,s) -> (e + maxA, s)) <$> Map.toList (signatures b)
+    newWires = (fixPort *** fixPort) <$> Bimap.toList (connections b)
+
+    maxA = nextHyperEdgeId a
+    maxB = nextHyperEdgeId b
+    (ai, ao) = hypergraphSize a
+    (bi, bo) = hypergraphSize b
+    offset   = max 0 (ao - bi)
+
+    fixPort :: Reifies a PortRole => Port a Open -> Port a Open
+    fixPort p@(Port Boundary i) = Port Boundary (i + offset)
+      where offset = portRole ai ao p
+    fixPort (Port (Gen e) i) = Port (Gen $ e + maxA) i
+
+
 -- | Sequentially compose two hypergraphs, even when types don\'t match.
 -- Wires left dangling as a result of mismatched types will automatically be
 -- connected to their corresponding boundary.
+--
+-- in a → b, if a has more outputs, then b will connect to the *lowermost*
+-- outputs of a. If b has more inputs than a has outputs, then a will connect
+-- to the *uppermost* inputs of b, e.g.:
+--
+-- This is "asymmetric" because it means no changes ever have to be made to the
+-- "a" graph, which is assumed to be much larger than the "b" graph.
+--
+--   ┌───┐    ┌───┐           ┌───┐
+--   │ A │────│ B │           │ A │─────────
+--   └───┘    │   │           │   │     ┌───┐
+--   ─────────│   │           │   │──── │ B │
+--            └───┘           └───┘     └───┘
+--   A has fewer outputs       B has fewer inputs
 --
 -- see wiki/ALGEBRAIC.md for implementation details
 --
@@ -51,74 +79,6 @@ instance Monoid (OpenHypergraph sig) where
 -- "affine".
 -- It might be better to reimplement this, but I think handling as a special
 -- case makes it a bit faster?
-(⇒) :: OpenHypergraph a -> OpenHypergraph a -> OpenHypergraph a
-a ⇒ bOld = Hypergraph cs ss (nextHyperEdgeId b)
-  where
-    -- Renumber hyperedge Ids.
-    -- log-linear in b' (rebuilds the entire connection bimap)
-    b = incrementHyperEdgeIds (nextHyperEdgeId a) bOld
-    -- connections of b, but boundaries replaced with IDs of generators in a.
-    bcs = foldl' (flip $ uncurry Bimap.insert) (connections b) (rewire a b)
-
-    ss = Map.union (signatures a) (signatures b)
-
-    cs = foldl' (flip$ uncurry Bimap.insert) (connections a) (Bimap.toList bcs)
-
--- | Monoidal product (×) of two hypergraphs.
-tensor :: OpenHypergraph sig -> OpenHypergraph sig -> OpenHypergraph sig
-tensor a b' = a `mergeR` b where
-  (n, m) = hypergraphSize a
-  b = mapSourceBoundaryMonotonic (+ n) -- ^ Boundary ports start from n
-    . mapTargetBoundaryMonotonic (+ m) -- ^ Boundary ports start from m
-    . incrementHyperEdgeIds (nextHyperEdgeId a)
-    $ b'
-
--------------------------------
--- Utilities
-
--- | Map a monotonic function over the indexes of source boundary ports in an
--- 'OpenHypergraph'
-mapSourceBoundaryMonotonic
-  :: (Int -> Int) -> OpenHypergraph sig -> OpenHypergraph sig
-mapSourceBoundaryMonotonic f hg
-  = hg { connections = Bimap.mapMonotonic g (connections hg) }
-  where
-    g (Port Boundary i) = Port Boundary (f i)
-    g p = p
-
--- | Same as mapSourceBoundaryMonotonic, but for target boundary.
-mapTargetBoundaryMonotonic
-  :: (Int -> Int) -> OpenHypergraph sig -> OpenHypergraph sig
-mapTargetBoundaryMonotonic f hg
-  = hg { connections = Bimap.mapMonotonicR g (connections hg) }
-  where
-    g (Port Boundary i) = Port Boundary (f i)
-    g p = p
-
--- TODO: Could this be very slow? Recomputing size each time is kinda dumb!
-rewire :: OpenHypergraph sig -> OpenHypergraph sig -> [Wire Open]
-rewire a b = go 0
-  where
-    (ai, ao) = hypergraphSize a
-    (bi, bo) = hypergraphSize b
-
-    go i =
-      let s = Bimap.lookupR (Port Boundary i) (connections a)
-          t = Bimap.lookup  (Port Boundary i) (connections b)
-      in  case (s, t) of
-        (Nothing, Nothing) -> []
-        (Just s, Just t)   -> (s, t) : go (succ i)
-        (Just s, Nothing)  -> (s, Port Boundary (bo + i - bi)) : go (succ i)
-        (Nothing, Just t)  -> (Port Boundary (ai + i - ao), t) : go (succ i)
-
--------------------------------
--- reimplementation
-
--- We have to do these things
---  * update (offset) right-boundary wires of a
---  * update (offset) left-boundary wires of b
---  * add (nextHyperEdgeId a) to wires and edges of b
---  * set left boundaries of b to source of right boundary in a
 (→) :: OpenHypergraph a -> OpenHypergraph a -> OpenHypergraph a
 a → b = a
   { connections = foldl' (flip $ uncurry Bimap.insert) (connections a) newWires
@@ -126,40 +86,32 @@ a → b = a
   , nextHyperEdgeId = maxA + maxB
   }
   where
-    (ai, ao) = hypergraphSize a
-    (bi, bo) = hypergraphSize b
+    newEdges = (\(e,s) -> (e + maxA, s)) <$> Map.toList (signatures b)
+    newWires = rewireB <$> Bimap.toList (connections b)
+
     maxA = nextHyperEdgeId a
     maxB = nextHyperEdgeId b
+    (ai, ao) = hypergraphSize a
+    (bi, bo) = hypergraphSize b
+    offset   = max 0 (ao - bi)
 
-    awires = rewireLeft a (bi, bo)
-    bwires = rewireRightWire (ai, ao) . fixRightWire a b . renumber
-          <$!> Bimap.toList (connections b)
+    rewireB :: Wire Open -> Wire Open
+    rewireB = onFst reindexLeft . pairUp . (reindexPort *** reindexPort)
+      where onFst f (a,b) = (f a, b)
 
-    renumber (s, t) = (mapPortEdge (+maxA) s, mapPortEdge (+maxA) t)
+    -- TODO: don't bother looking up if i >= ao.
+    pairUp :: Wire Open -> Wire Open
+    pairUp w@(Port Boundary i, t) =
+      case Bimap.lookupR (Port Boundary i) (connections a) of
+        Nothing -> w
+        Just s' -> (s', t)
+    pairUp w = w
 
-    newEdges = (\(e,s) -> (e + maxA, s)) <$> Map.toList (signatures b)
-    newWires = awires ++ bwires
+    -- OK, good.
+    reindexPort (Port Boundary i) = Port Boundary (i + offset)
+    reindexPort (Port (Gen e)  i) = Port (Gen (e + maxA)) i
 
--- Get the affine-offset wires of the left hypergraph in a composition
-rewireLeft :: OpenHypergraph a -> (Int, Int) -> [Wire Open]
-rewireLeft a (bi, bo) = go bi where
-  go i = case Bimap.lookupR (Port Boundary i) (connections a) of
-    Just s  -> rewireLeftWire (bi, bo) (s, Port Boundary i) : go (succ i)
-    Nothing -> []
-
--- | Fix a wire in the left side of affineCompose
-rewireLeftWire :: (Int, Int) -> Wire Open -> Wire Open
-rewireLeftWire (bi, bo) (s, Port Boundary i)
-  = if i >= bi then (s, Port Boundary (i - bi + bo)) else (s, Port Boundary i)
-rewireLeftWire _ w = w
-
--- | Fix a wire on the RIGHT side of affineCompose
-rewireRightWire (ai, ao) (Port Boundary i, t)
-  = if i >= ao then (Port Boundary (i - ao + ai), t) else (Port Boundary i, t)
-rewireRightWire _ w = w
-
--- Modify boundary wires from the latter hypergraph so that
-fixRightWire :: OpenHypergraph a -> OpenHypergraph a -> Wire Open -> Wire Open
-fixRightWire a b w@(Port Boundary i, t)
-  = maybe w (\s -> (s,t)) $! Bimap.lookupR (Port Boundary i) (connections a)
-fixRightWire a b w = w
+    -- NOTE: only called *after* matchBoundaries, so it will only get ports
+    -- which will eventually connect to the boundary.
+    reindexLeft (Port Boundary i) = Port Boundary (i - ao + ai)
+    reindexLeft p = p
