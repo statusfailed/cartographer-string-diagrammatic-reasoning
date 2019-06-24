@@ -53,6 +53,7 @@ test-suite test
     Data.Hypergraph.Test
     Data.Hypergraph.Test.Arbitrary
     Data.Hypergraph.Test.Type
+    Data.Hypergraph.Test.Algebraic
     Data.Hypergraph.Test.Match
   build-depends:
       base

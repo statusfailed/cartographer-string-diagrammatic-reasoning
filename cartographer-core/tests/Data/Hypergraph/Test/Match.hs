@@ -2,26 +2,22 @@ module Data.Hypergraph.Test.Match where
 
 import Test.Tasty
 import Test.Tasty.QuickCheck as QC
-import Data.Hypergraph.Test.Arbitrary
-import Data.Hypergraph.Search (undirectedDfs, wires)
 
 import Data.Hypergraph
+import Data.Hypergraph.Test.Arbitrary
 
 import Data.List (sort)
-
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
-
 import qualified Data.Map.Strict as Map
+
 import Debug.Trace
 
 -------------------------------
 -- Tests
 
 tests = testGroup "Data.Hypergraph.Match"
-  [ QC.testProperty "prop_dfsAllConnections" prop_dfsAllConnections
-  , QC.testProperty "prop_completeSingletons" prop_completeSingletons
-  , QC.testProperty "prop_matchSelf" prop_matchSelf
+  [ QC.testProperty "prop_matchSelf" prop_matchSelf
   , QC.testProperty "prop_matchTwice" prop_matchTwice
   , QC.testProperty "prop_matchSizeEqualsPatternSize"
       prop_matchSizeEqualsPatternSize
@@ -47,11 +43,6 @@ graphSize g = (Bimap.size (connections g), Map.size (signatures g))
 
 -------------------------------
 -- Properties
-
--- | Verify that composing two singleton hypergraphs is Complete.
--- This test is redundant, but makes debugging much easier!
-prop_completeSingletons :: Generator -> Generator -> Bool
-prop_completeSingletons a b = isComplete (singleton a → singleton b)
 
 -- | A pattern always matches in itself at least once.
 -- It can be more - for example, (g <> g) will match at least twice in (g <> g)
@@ -97,11 +88,6 @@ prop_identityMatchesNonEmpty :: OpenHypergraph Generator -> Property
 prop_identityMatchesNonEmpty g
   =   (not . Data.Hypergraph.null $ g)
   ==> Bimap.size (connections g) == length (match identity g)
-
-prop_dfsAllConnections :: OpenHypergraph Generator -> Property
-prop_dfsAllConnections g =
-      sort (undirectedDfs g . Bimap.toList . connections $ g)
-  === sort (Bimap.toList $ connections g)
 
 -- | A singleton graph appearing within a larger graph should always be
 -- matchable.

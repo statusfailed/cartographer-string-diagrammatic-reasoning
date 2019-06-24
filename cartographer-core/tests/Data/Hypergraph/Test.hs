@@ -12,6 +12,7 @@ import Test.Tasty.QuickCheck as QC
 import Data.Hypergraph
 import Data.Hypergraph.Test.Arbitrary
 import Data.Hypergraph.Test.Type as Type
+import Data.Hypergraph.Test.Algebraic as Algebraic
 import Data.Hypergraph.Test.Match as Match
 
 import Data.Time.Clock
@@ -21,6 +22,7 @@ import Data.List (foldl')
 mainTests :: TestTree
 mainTests = testGroup "Data.Hypergraph"
   [ Type.tests
+  , Algebraic.tests
   , Match.tests
   ]
 
