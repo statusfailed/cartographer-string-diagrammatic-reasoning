@@ -115,8 +115,6 @@ prop_matchSingleton a g b = not . Prelude.null $ match s (a → s → b)
 -- TODO: problem
 --  this is fast:     match a (a → b)
 --  this is SLOW:     match b (a → b)
---
--- Probably because we pick random connections out of a!!! DO THEM IN ORDER.
 prop_matchAfter
   :: OpenHypergraph Generator -> OpenHypergraph Generator -> Bool
 prop_matchAfter a b =

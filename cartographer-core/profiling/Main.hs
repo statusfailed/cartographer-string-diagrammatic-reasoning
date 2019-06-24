@@ -32,7 +32,7 @@ matchProfile = do
   let a = singleton (Generator (2,1))
       b = singleton (Generator (2,2))
       c = singleton (Generator (1,2))
-      r = foldl' (→) empty (replicate 2000 $ c → a)
+      r = foldl' (→) empty (replicate 20000 $ c → a)
       g = r → b → r
   t0 <- getCurrentTime
   putStrLn ("mark: " ++ show t0)
