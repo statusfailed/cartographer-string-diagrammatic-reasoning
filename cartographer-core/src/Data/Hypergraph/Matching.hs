@@ -1,5 +1,3 @@
-{-# LANGUAGE Strict #-}
-{-# LANGUAGE StrictData #-}
 {-# LANGUAGE PartialTypeSignatures  #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE FlexibleContexts       #-}
@@ -8,6 +6,7 @@
 module Data.Hypergraph.Matching where
 
 import Control.Monad
+import Control.Monad.Logic
 import Control.Monad.Logic.Class
 import Control.Applicative hiding (empty)
 import qualified Control.Applicative as A
@@ -31,10 +30,15 @@ data Matching a = Matching
 empty :: Matching a
 empty = Matching Bimap.empty Bimap.empty
 
-match
-  :: (Eq a) -- , MonadLogic f)
-  => OpenHypergraph a -> OpenHypergraph a -> [Matching a]
-match pattern context
+match :: Eq a => OpenHypergraph a -> OpenHypergraph a -> [Matching a]
+match pattern context = observeAll $ match' pattern context
+
+-- NOTE: it seems about 500x faster in certain cases to just use list, and
+-- avoid the 'choice' function. Not sure why this is,
+match'
+  :: (Eq a, MonadLogic f)
+  => OpenHypergraph a -> OpenHypergraph a -> f (Matching a)
+match' pattern context
   | Hypergraph.null pattern = pure empty -- empty pattern => empty matching
   | otherwise = foldM (matchWire pattern context) empty wires
   where
@@ -65,7 +69,7 @@ update
 update pattern context m pw@(p,q) cw@(p',q') = addEdges . addWires $ m
   where
     addWires x = x { _matchingWires = Bimap.insert pw cw . _matchingWires $ x }
-    addEdges = matchPorts q q' . matchPorts p p' 
+    addEdges = matchPorts q q' . matchPorts p p'
 
 -- | Equate the HyperEdgeIds of two ports in the Matching.
 matchPorts :: Port a Open -> Port a Open -> Matching sig -> Matching sig
@@ -78,7 +82,7 @@ matchPorts (Port (Gen a) _) (Port (Gen b) _) m =
 -- We try to exploit the "determined structure" of the hypergraph, by
 -- checking if either of the source/target hyperedges is already matched.
 candidates
-  :: MonadLogic f
+  :: (Eq a, MonadLogic f)
   => OpenHypergraph a
   -> OpenHypergraph a
   -> Matching a -> Wire Open -> f (Wire Open)
@@ -116,7 +120,7 @@ determined pattern context m w@(s, t) =
 -- TODO: use an index here. We can index by the "portsMatch" condition- see
 -- wiki.
 undetermined
-  :: MonadLogic f
+  :: (Eq a, MonadLogic f)
   => OpenHypergraph a
   -> OpenHypergraph a
   -> Matching a
@@ -124,14 +128,10 @@ undetermined
   -> f (Wire Open)
 undetermined pattern context m w = do
   choice $ filter condition (Bimap.toList $ connections context)
-  where condition = liftM2 (&&) (portsMatch w) (unmatchedContextWire m)
+  where condition = consistent pattern context m w
 
-
--- | Given a proposed wire matching, is it consistent with the rest of the
--- matching? i.e.:
---    * If the source generator is in the matching, 
---    1. edge map still 1:1?
---    2. ????
+-- | Given a proposed wire matching, check for consistency with the rest of the
+-- matching.
 consistent
   :: Eq a
   => OpenHypergraph a
