@@ -93,6 +93,7 @@ selfCase = match hg hg where
 -- Space leak debugging
 
 -- about 5ms to match a size-5 pattern in a 100K size graph.
+-- more like 20-40 ms now :(
 bigSize = do
   t0 <- getCurrentTime
   a <- generate (generateSized 50000 :: Gen (OpenHypergraph Generator))
@@ -107,7 +108,7 @@ bigSize = do
   print (diffUTCTime t2 t1)
 
   putStrLn $ "finding pattern size: " ++ show (hypergraphSize p)
-  print (take 2 $ match p hg)
+  print (take 1 $ match p hg)
   t3 <- getCurrentTime
   print (diffUTCTime t3 t2)
 
@@ -128,8 +129,8 @@ composePerf = do
 
 funPerf = do
   t0 <- getCurrentTime
-  a <- generate (generateSized 100 :: Gen (OpenHypergraph Generator))
-  b <- generate (generateSized 100 :: Gen (OpenHypergraph Generator))
+  a <- generate (generateSized 10000 :: Gen (OpenHypergraph Generator))
+  b <- generate (generateSized 10000 :: Gen (OpenHypergraph Generator))
   t1 <- getCurrentTime
   print (diffUTCTime t1 t0)
 

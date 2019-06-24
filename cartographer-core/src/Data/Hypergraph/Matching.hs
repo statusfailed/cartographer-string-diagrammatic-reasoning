@@ -14,6 +14,9 @@ import qualified Control.Applicative as A
 import Data.Hypergraph.Type as Hypergraph hiding (empty)
 import Data.Hypergraph.Search (undirectedDfs)
 
+import Data.Hypergraph.Index (Index, HypergraphIndex)
+import qualified Data.Hypergraph.Index as Index
+
 import Data.List (foldl')
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
@@ -30,30 +33,32 @@ data Matching a = Matching
 empty :: Matching a
 empty = Matching Bimap.empty Bimap.empty
 
-match :: Eq a => OpenHypergraph a -> OpenHypergraph a -> [Matching a]
+match :: (Ord a, Eq a) => OpenHypergraph a -> OpenHypergraph a -> [Matching a]
 match pattern context = observeAll $ match' pattern context
 
 -- NOTE: it seems about 500x faster in certain cases to just use list, and
 -- avoid the 'choice' function. Not sure why this is,
 match'
-  :: (Eq a, MonadLogic f)
+  :: (Ord a, Eq a, MonadLogic f)
   => OpenHypergraph a -> OpenHypergraph a -> f (Matching a)
 match' pattern context
   | Hypergraph.null pattern = pure empty -- empty pattern => empty matching
-  | otherwise = foldM (matchWire pattern context) empty wires
+  | otherwise = foldM (matchWire ix pattern context) empty wires
   where
     wires = undirectedDfs pattern (Bimap.toList $ connections pattern)
+    ix    = Index.fromHypergraph context
 
 -- | Match a wire from the pattern with a wire in the context.
 -- First proposes possible matches (candidates), then checks the match would be
 -- consistent, then updates the matching.
 matchWire
-  :: (Eq a, MonadLogic f)
-  => OpenHypergraph a
+  :: (Ord a, Eq a, MonadLogic f)
+  => HypergraphIndex a
+  -> OpenHypergraph a
   -> OpenHypergraph a
   -> Matching a -> Wire Open -> f (Matching a)
-matchWire pattern context m w = do
-  cw <- candidates pattern context m w
+matchWire ix pattern context m w = do
+  cw <- candidates ix pattern context m w
   guard (consistent pattern context m w cw)
   pure (update pattern context m w cw)
 
@@ -82,14 +87,15 @@ matchPorts (Port (Gen a) _) (Port (Gen b) _) m =
 -- We try to exploit the "determined structure" of the hypergraph, by
 -- checking if either of the source/target hyperedges is already matched.
 candidates
-  :: (Eq a, MonadLogic f)
-  => OpenHypergraph a
+  :: (Ord a, Eq a, MonadLogic f)
+  => HypergraphIndex a
+  -> OpenHypergraph a
   -> OpenHypergraph a
   -> Matching a -> Wire Open -> f (Wire Open)
-candidates pattern context m w
+candidates ix pattern context m w
   = case (determined pattern context m w) of
       Just w  -> pure w
-      Nothing -> undetermined pattern context m w
+      Nothing -> undetermined ix pattern context m w
 
 -- | Return the context wire uniquely determined by a pattern wire.
 -- If no context wire is so determined, return Nothing.
@@ -120,15 +126,20 @@ determined pattern context m w@(s, t) =
 -- TODO: use an index here. We can index by the "portsMatch" condition- see
 -- wiki.
 undetermined
-  :: (Eq a, MonadLogic f)
-  => OpenHypergraph a
+  :: (Ord a, Eq a, MonadLogic f)
+  => HypergraphIndex a
+  -> OpenHypergraph a
   -> OpenHypergraph a
   -> Matching a
   -> Wire Open
   -> f (Wire Open)
-undetermined pattern context m w = do
-  choice $ filter condition (Bimap.toList $ connections context)
-  where condition = consistent pattern context m w
+undetermined ix pattern context m w =
+  choice $ filter condition values
+  where
+    condition = consistent pattern context m w
+    values = maybe (Bimap.toList $ connections context) id $ do
+      k <- Index.toKey pattern w
+      Index.lookup (fst k) ix
 
 -- | Given a proposed wire matching, check for consistency with the rest of the
 -- matching.

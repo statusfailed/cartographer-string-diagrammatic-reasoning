@@ -24,6 +24,7 @@ library
                  , Data.Hypergraph.Algebraic
                  , Data.Hypergraph.Unsafe
                  , Data.Hypergraph.Matching
+                 , Data.Hypergraph.Index
                  --, Data.Hypergraph.Match
                  --, Data.Hypergraph.Rewrite
                  , Data.Hypergraph.Traversal
