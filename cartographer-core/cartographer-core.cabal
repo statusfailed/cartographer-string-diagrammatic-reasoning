@@ -58,6 +58,7 @@ test-suite test
   build-depends:
       base
     , time
+    , logict
     , bimap
     , containers
     , tasty
@@ -76,4 +77,4 @@ executable profiling
     "-with-rtsopts=-N -p -s -h -i0.1"
   hs-source-dirs:   profiling
   main-is:          Main.hs
-  build-depends: base, bimap, cartographer-core, time
+  build-depends: base, bimap, cartographer-core, time, logict, containers, bimap

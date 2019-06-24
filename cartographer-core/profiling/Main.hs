@@ -1,8 +1,18 @@
 module Main where
 
 import Data.Hypergraph
+import Control.Monad.Logic
 import Data.List (foldl')
 import Data.Time.Clock
+
+import Data.Bimap (Bimap)
+import qualified Data.Bimap as Bimap
+
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+
+graphSize :: OpenHypergraph sig -> (Int, Int)
+graphSize g = (Bimap.size (connections g), Map.size (signatures g))
 
 data Generator = Generator (Int, Int)
   deriving(Eq, Ord, Read, Show)
@@ -32,20 +42,24 @@ matchProfile = do
   let a = singleton (Generator (2,1))
       b = singleton (Generator (2,2))
       c = singleton (Generator (1,2))
-      r = foldl' (→) empty (replicate 20000 $ c → a)
-      g = r → b → r
+      r = foldl' (→) empty (replicate 50000 $ c → a)
+      p = a → b → c
+      g = r → p → r
   t0 <- getCurrentTime
   putStrLn ("mark: " ++ show t0)
 
-  print $ toSize g
+  print $ graphSize g
   t1 <- getCurrentTime
   putStrLn ("mark: " ++ show t1)
 
-  print $ take 1 (match b g)
+  print $ observe (match p g)
   t2 <- getCurrentTime
   putStrLn ("mark: " ++ show t2)
 
   print (diffUTCTime t2 t1)
+
+-------------------------------
+-- small patterns in big graphs
 
 main = matchProfile
 {-main = tensorProfile-}

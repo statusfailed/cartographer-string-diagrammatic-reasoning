@@ -49,7 +49,7 @@ graphSize g = (Bimap.size (connections g), Map.size (signatures g))
 -- because there are two choices for g. However, the matchings are effectively
 -- the same.
 prop_matchSelf :: OpenHypergraph Generator -> Property
-prop_matchSelf a = 1 === (length . take 1 $ match a a)
+prop_matchSelf a = 1 === (length . take 1 $ matchAll a a)
 
 -- | NOTE: this test length > 2 because of cases like the following:
 --
@@ -70,24 +70,24 @@ prop_matchSelf a = 1 === (length . take 1 $ match a a)
 prop_matchTwice :: OpenHypergraph Generator -> Property
 prop_matchTwice a
   =   (not . Data.Hypergraph.null $ a)
-  ==> length (take 2 (match a $ a → a)) === 2
+  ==> length (take 2 (matchAll a $ a → a)) === 2
 
 prop_matchSizeEqualsPatternSize
   :: OpenHypergraph Generator -> OpenHypergraph Generator -> Property
 prop_matchSizeEqualsPatternSize a b =
-  let m = head $ match a (a → b)
+  let m = head $ matchAll a (a → b)
   in  graphSize a === matchSize m
 
 -- | The empty hypergraph matches in every hypergraph.
 prop_emptyMatchesEverywhere :: OpenHypergraph Generator -> Bool
-prop_emptyMatchesEverywhere g = not . Prelude.null $ match empty g
+prop_emptyMatchesEverywhere g = not . Prelude.null $ matchAll empty g
 
 -- | The identity wire should match in any non-empty hypergraph exactly as
 -- many times as that graph has connections.
 prop_identityMatchesNonEmpty :: OpenHypergraph Generator -> Property
 prop_identityMatchesNonEmpty g
   =   (not . Data.Hypergraph.null $ g)
-  ==> Bimap.size (connections g) == length (match identity g)
+  ==> Bimap.size (connections g) == length (matchAll identity g)
 
 -- | A singleton graph appearing within a larger graph should always be
 -- matchable.
@@ -95,7 +95,7 @@ prop_matchSingleton
   :: OpenHypergraph Generator
   -> Generator
   -> OpenHypergraph Generator -> Bool
-prop_matchSingleton a g b = not . Prelude.null $ match s (a → s → b)
+prop_matchSingleton a g b = not . Prelude.null $ matchAll s (a → s → b)
   where s = singleton g
 
 -- TODO: problem
@@ -108,18 +108,18 @@ prop_matchAfter a b =
             ", ngens: " ++ show (Map.size (signatures a)) ++
             ", " ++ show (Map.size (signatures b))
       composed = trace msg (a → b)
-  in  not . Prelude.null $ match b composed
+  in  not . Prelude.null $ matchAll b composed
 
 prop_matchCompose
   :: OpenHypergraph Generator
   -> OpenHypergraph Generator
   -> OpenHypergraph Generator
   -> Bool
-prop_matchCompose a b c = not . Prelude.null $ match b (a → b → c)
+prop_matchCompose a b c = not . Prelude.null $ matchAll b (a → b → c)
 
 prop_matchTensor
   :: OpenHypergraph Generator
   -> OpenHypergraph Generator
   -> OpenHypergraph Generator
   -> Bool
-prop_matchTensor a b c = not . Prelude.null $ match b (a <> b <> c)
+prop_matchTensor a b c = not . Prelude.null $ matchAll b (a <> b <> c)

@@ -17,6 +17,7 @@ import Data.Hypergraph.Test.Match as Match
 
 import Data.Time.Clock
 import Control.Monad
+import Control.Monad.Logic
 import Data.List (foldl')
 
 mainTests :: TestTree
@@ -34,7 +35,7 @@ smallInLarge = do
   a <- generate (generateSized 10000 :: Gen (OpenHypergraph Generator))
   b <- generate (generateSized 3     :: Gen (OpenHypergraph Generator))
   c <- generate (generateSized 10000 :: Gen (OpenHypergraph Generator))
-  print . take 1 $ match b (a → b → c)
+  print . take 1 $ matchAll b (a → b → c)
 
 -------------------------------
 -- intentionally constructed slow cases
@@ -69,7 +70,7 @@ slowcase pad k n = (pat, ctx) where
   ctx = chain (k * n + pad) -- why does this only work for nonzero pad?
   pat = foldl (<>) empty (replicate n $ chain k)
 
-bar pad k n = not . Prelude.null . uncurry match $ slowcase pad k n
+bar pad k n = not . Prelude.null . uncurry matchAll $ slowcase pad k n
 
 badbench = getCurrentTime >>= go 1 where
   go k t = do
@@ -81,11 +82,11 @@ badbench = getCurrentTime >>= go 1 where
 -------------------------------
 -- Weird matching behaviour!
 
-twiceCase = match hg (hg <> hg) where
+twiceCase = matchAll hg (hg <> hg) where
   g x = singleton $ Generator x (0, 1)
   hg = g 0 <> g 1
 
-selfCase = match hg hg where
+selfCase = matchAll hg hg where
   g = singleton (Generator 0 (1, 1))
   hg = g <> g
 
@@ -107,7 +108,7 @@ bigSize = do
   print (diffUTCTime t2 t1)
 
   putStrLn $ "finding pattern size: " ++ show (hypergraphSize p)
-  print (take 2 $ match p hg)
+  print (observe $ match p hg)
   t3 <- getCurrentTime
   print (diffUTCTime t3 t2)
 
@@ -138,6 +139,6 @@ funPerf = do
   t2 <- getCurrentTime
   print (diffUTCTime t2 t1)
 
-  print (take 1 $ match b c)
+  print (take 1 $ matchAll b c)
   t3 <- getCurrentTime
   print (diffUTCTime t3 t2)

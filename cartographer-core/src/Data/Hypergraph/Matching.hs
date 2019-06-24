@@ -30,15 +30,15 @@ data Matching a = Matching
 empty :: Matching a
 empty = Matching Bimap.empty Bimap.empty
 
-match :: Eq a => OpenHypergraph a -> OpenHypergraph a -> [Matching a]
-match pattern context = observeAll $ match' pattern context
+matchAll :: Eq a => OpenHypergraph a -> OpenHypergraph a -> [Matching a]
+matchAll pattern context = observeAll $ match pattern context
 
 -- NOTE: it seems about 500x faster in certain cases to just use list, and
 -- avoid the 'choice' function. Not sure why this is,
-match'
+match
   :: (Eq a, MonadLogic f)
   => OpenHypergraph a -> OpenHypergraph a -> f (Matching a)
-match' pattern context
+match pattern context
   | Hypergraph.null pattern = pure empty -- empty pattern => empty matching
   | otherwise = foldM (matchWire pattern context) empty wires
   where
@@ -143,7 +143,7 @@ consistent
 consistent pattern context m a b
   =  portsMatch a b
   && unmatchedContextWire m b
-  && edgeTypesMatch pattern context a b
+  && edgeTypesMatch pattern context a b -- this is expensive so important to come last
 
 -- | Returns true if a (context) wire is not in the Matching
 unmatchedContextWire :: Matching a -> Wire Open -> Bool
