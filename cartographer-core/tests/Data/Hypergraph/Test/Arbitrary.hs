@@ -1,5 +1,3 @@
-{-# LANGUAGE Strict #-}
-{-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -29,10 +27,9 @@ generateSized n = do
   a <- generateSized k
   b <- generateSized (n - k)
 
-  -- TODO: heavily favour composition; many monoidal products = slow matching.
-  -- frequency [(19, a → b), (1, a <> b)]
-  isCompose <- arbitrary
-  return (if isCompose then a → b else a <> b)
+  -- NOTE: this heavily favours composition because many monoidal products
+  -- cause extremely slow matching.
+  frequency [(19, return (a → b)), (1, return (a <> b))]
 
 -------------------------------
 -- A Generator type for use in testing.

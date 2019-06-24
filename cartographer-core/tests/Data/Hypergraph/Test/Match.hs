@@ -28,8 +28,9 @@ tests = testGroup "Data.Hypergraph.Match"
   , QC.testProperty "prop_emptyMatchesEverywhere" prop_emptyMatchesEverywhere
   , QC.testProperty "prop_identityMatchesNonEmpty" prop_identityMatchesNonEmpty
   , QC.testProperty "prop_matchSingleton" prop_matchSingleton
-  , QC.testProperty "prop_matchAfter" prop_matchAfter
-  {-, QC.testProperty "prop_matchSandwich" prop_matchSandwich-}
+  , QC.testProperty "prop_matchCompose" prop_matchCompose
+  , QC.testProperty "prop_matchTensor" prop_matchTensor
+  {-, QC.testProperty "prop_matchAfter" prop_matchAfter-}
   ]
 
 -------------------------------
@@ -125,9 +126,16 @@ prop_matchAfter a b =
       composed = trace msg (a → b)
   in  not . Prelude.null $ match b composed
 
-prop_matchSandwich
+prop_matchCompose
   :: OpenHypergraph Generator
   -> OpenHypergraph Generator
   -> OpenHypergraph Generator
   -> Bool
-prop_matchSandwich a b c = not . Prelude.null $ match b (a → b → c)
+prop_matchCompose a b c = not . Prelude.null $ match b (a → b → c)
+
+prop_matchTensor
+  :: OpenHypergraph Generator
+  -> OpenHypergraph Generator
+  -> OpenHypergraph Generator
+  -> Bool
+prop_matchTensor a b c = not . Prelude.null $ match b (a <> b <> c)
