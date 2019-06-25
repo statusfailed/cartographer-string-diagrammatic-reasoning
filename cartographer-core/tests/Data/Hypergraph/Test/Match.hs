@@ -69,7 +69,7 @@ prop_matchSelf a = 1 === (length . take 1 $ matchAll a a)
 -- (valid) ways to assign the "b" type generators - giving us 4 matchings!
 prop_matchTwice :: OpenHypergraph Generator -> Property
 prop_matchTwice a
-  =   (not . Data.Hypergraph.null $ a)
+  =   not (Data.Hypergraph.null a)
   ==> length (take 2 (matchAll a $ a → a)) === 2
 
 prop_matchSizeEqualsPatternSize

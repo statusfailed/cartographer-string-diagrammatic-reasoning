@@ -4,7 +4,7 @@ module Data.Hypergraph
   , module Data.Hypergraph.Matching
   {-, module Data.Hypergraph.Match-}
   {-, module Data.Hypergraph.Rewrite-}
-  , module Data.Hypergraph.Traversal
+  {-, module Data.Hypergraph.Traversal-}
   {-, module Data.Hypergraph.Layer-}
   ) where
 
@@ -30,7 +30,7 @@ import Data.Hypergraph.Search
 {-import Data.Hypergraph.Rewrite-}
 
 -- Traversal
-import Data.Hypergraph.Traversal
+{-import Data.Hypergraph.Traversal-}
 
 -- Layering
 {-import Data.Hypergraph.Layer-}

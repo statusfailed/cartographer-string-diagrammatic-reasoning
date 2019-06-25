@@ -9,7 +9,7 @@ import qualified Data.Bimap as Bimap
 
 import Data.Hypergraph.Test.Arbitrary 
 import Data.Hypergraph
-import Data.Hypergraph.Traversal
+{-import Data.Hypergraph.Traversal-}
 
 -------------------------------
 -- Tests
@@ -43,12 +43,10 @@ prop_connectionsHavePorts :: OpenHypergraph Generator -> Bool
 prop_connectionsHavePorts g = all hasPorts (Bimap.toList $ connections g) where
   hasPorts (source, target) = hasSource source && hasTarget target
   hasSource (Port Boundary _) = True
-  hasSource (Port (Gen x) i) =
-    maybe False ((>i) . snd . toSize) (signatureOf x g)
+  hasSource (Port (Gen (t,e)) i) = (>i) . snd . toSize $ t
 
   hasTarget (Port Boundary _) = True
-  hasTarget (Port (Gen x) i) =
-    maybe False ((>i) . fst . toSize) (signatureOf x g)
+  hasTarget (Port (Gen (t,e)) i) = (>i) . fst . toSize $ t
 
 -- | The size of a "singleton" hypergraph is the same size as the one generator
 -- in that graph.

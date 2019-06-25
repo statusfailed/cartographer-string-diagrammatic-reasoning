@@ -52,10 +52,10 @@ deleteEdge e g = g
 -- CARTOGRAPHER relies on the Layout class to enforce this, by only allowing
 -- ports in shallower layers to connect to deeper ones.
 connect
-  :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
-  => Port Source f
+  :: (Eq (f (sig, HyperEdgeId)), Ord (f (sig, HyperEdgeId)))
+  => Port sig Source f
   -- ^ source port
-  -> Port Target f
+  -> Port sig Target f
   -- ^ target port
   -> Hypergraph f sig
   -- ^ Hypergraph to modify
@@ -65,16 +65,16 @@ connect p1 p2 hg = hg { connections = Bimap.insert p1 p2 (connections hg) }
 
 -- | Delete a connection by its 'Source' port.
 disconnectSource
-  :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
-  => Port Source f
+  :: (Eq (f (sig, HyperEdgeId)), Ord (f (sig, HyperEdgeId)))
+  => Port sig Source f
   -> Hypergraph f sig
   -> Hypergraph f sig
 disconnectSource s hg = hg { connections = Bimap.delete s (connections hg) }
 
 -- | delete a connection by its 'Target' port.
 disconnectTarget
-  :: (Eq (f HyperEdgeId), Ord (f HyperEdgeId))
-  => Port Target f
+  :: (Eq (f (sig, HyperEdgeId)), Ord (f (sig, HyperEdgeId)))
+  => Port sig Target f
   -> Hypergraph f sig
   -> Hypergraph f sig
 disconnectTarget t hg = hg { connections = Bimap.deleteR t (connections hg) }

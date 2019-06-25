@@ -22,18 +22,15 @@ library
   exposed-modules: Data.Hypergraph
                  , Data.Hypergraph.Type
                  , Data.Hypergraph.Algebraic
-                 , Data.Hypergraph.Unsafe
                  , Data.Hypergraph.Matching
+                 --, Data.Hypergraph.Unsafe
                  --, Data.Hypergraph.Match
                  --, Data.Hypergraph.Rewrite
-                 , Data.Hypergraph.Traversal
+                 --, Data.Hypergraph.Traversal
                  , Data.Hypergraph.Search
                  -- , Data.Hypergraph.Layer
                  -- , Data.Hypergraph.Examples
-  -- other-extensions:    
-  ghc-options:
-    -O2
-    -fprof-auto
+  ghc-options: -O2
   build-depends:       base, containers, bimap, logict, reflection
   hs-source-dirs:      src
   default-language:    Haskell2010
@@ -74,6 +71,7 @@ executable profiling
     -prof
     -fprof-auto
     -rtsopts
+    -Wall
     "-with-rtsopts=-N -p -s -h -i0.1"
   hs-source-dirs:   profiling
   main-is:          Main.hs

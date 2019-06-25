@@ -26,13 +26,15 @@ import qualified Data.Map as Map
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
-instance Semigroup (OpenHypergraph sig) where
+instance Ord sig => Semigroup (OpenHypergraph sig) where
   (<>) = tensor
 
-instance Monoid (OpenHypergraph sig) where
+instance Ord sig => Monoid (OpenHypergraph sig) where
   mempty = Hypergraph.empty
 
-tensor :: OpenHypergraph sig -> OpenHypergraph sig -> OpenHypergraph sig
+tensor
+  :: Ord sig
+  => OpenHypergraph sig -> OpenHypergraph sig -> OpenHypergraph sig
 tensor a b = a
   { connections = foldl' (flip $ uncurry Bimap.insert) (connections a) newWires
   , signatures  = foldl' (flip $ uncurry Map.insert) (signatures a) newEdges
@@ -48,10 +50,10 @@ tensor a b = a
     (bi, bo) = hypergraphSize b
     offset   = max 0 (ao - bi)
 
-    fixPort :: Reifies a PortRole => Port a Open -> Port a Open
+    {-fixPort :: Reifies a PortRole => Port a Open -> Port a Open-}
     fixPort p@(Port Boundary i) = Port Boundary (i + offset)
       where offset = portRole ai ao p
-    fixPort (Port (Gen e) i) = Port (Gen $ e + maxA) i
+    fixPort (Port (Gen (t, e)) i) = Port (Gen (t, e + maxA)) i
 
 
 -- | Sequentially compose two hypergraphs, even when types don\'t match.
@@ -79,7 +81,7 @@ tensor a b = a
 -- "affine".
 -- It might be better to reimplement this, but I think handling as a special
 -- case makes it a bit faster?
-(→) :: OpenHypergraph a -> OpenHypergraph a -> OpenHypergraph a
+(→) :: Ord a => OpenHypergraph a -> OpenHypergraph a -> OpenHypergraph a
 a → b = a
   { connections = foldl' (flip $ uncurry Bimap.insert) (connections a) newWires
   , signatures  = foldl' (flip $ uncurry Map.insert) (signatures a) newEdges
@@ -95,12 +97,12 @@ a → b = a
     (bi, bo) = hypergraphSize b
     offset   = max 0 (ao - bi)
 
-    rewireB :: Wire Open -> Wire Open
+    {-rewireB :: Wire sig Open -> Wire sig Open-}
     rewireB = onFst reindexLeft . pairUp . (reindexPort *** reindexPort)
       where onFst f (a,b) = (f a, b)
 
     -- TODO: don't bother looking up if i >= ao.
-    pairUp :: Wire Open -> Wire Open
+    {-pairUp :: Wire sig Open -> Wire sig Open-}
     pairUp w@(Port Boundary i, t) =
       case Bimap.lookupR (Port Boundary i) (connections a) of
         Nothing -> w
@@ -109,7 +111,7 @@ a → b = a
 
     -- OK, good.
     reindexPort (Port Boundary i) = Port Boundary (i + offset)
-    reindexPort (Port (Gen e)  i) = Port (Gen (e + maxA)) i
+    reindexPort (Port (Gen (t, e))  i) = Port (Gen (t, e + maxA)) i
 
     -- NOTE: only called *after* matchBoundaries, so it will only get ports
     -- which will eventually connect to the boundary.

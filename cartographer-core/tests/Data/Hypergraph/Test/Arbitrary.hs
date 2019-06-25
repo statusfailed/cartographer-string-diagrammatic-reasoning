@@ -11,12 +11,15 @@ import Debug.Trace
 
 import Test.QuickCheck
 
-instance (Signature sig, Arbitrary sig) => Arbitrary (OpenHypergraph sig) where
+instance (Ord sig, Signature sig, Arbitrary sig)
+  => Arbitrary (OpenHypergraph sig) where
   arbitrary = sized generateSized
 
 -- | Generate a hypergraph with a specific number of generators.
 generateSized
-  :: (Signature sig, Arbitrary sig) => Int -> Gen (OpenHypergraph sig)
+  :: (Ord sig, Signature sig, Arbitrary sig)
+  => Int
+  -> Gen (OpenHypergraph sig)
 generateSized 0 = return Hypergraph.empty -- give me the base case
 generateSized 1 = Hypergraph.singleton <$> arbitrary -- I said the REAL base case.
 -- In the general case, split n at a random point (1..n-1), then generate two
