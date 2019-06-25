@@ -92,10 +92,10 @@ prop_identityMatchesNonEmpty g
 -- | A singleton graph appearing within a larger graph should always be
 -- matchable.
 prop_matchSingleton
-  :: OpenHypergraph Generator
-  -> Generator
+  :: Generator
+  -> OpenHypergraph Generator
   -> OpenHypergraph Generator -> Bool
-prop_matchSingleton a g b = not . Prelude.null $ matchAll s (a → s → b)
+prop_matchSingleton g a b = not . Prelude.null $ matchAll s (a → s → b)
   where s = singleton g
 
 -- TODO: problem

@@ -53,7 +53,7 @@ tensor a b = a
     {-fixPort :: Reifies a PortRole => Port a Open -> Port a Open-}
     fixPort p@(Port Boundary i) = Port Boundary (i + offset)
       where offset = portRole ai ao p
-    fixPort (Port (Gen (t, e)) i) = Port (Gen (t, e + maxA)) i
+    fixPort (Port (Gen (e, t)) i) = Port (Gen (e + maxA, t)) i
 
 
 -- | Sequentially compose two hypergraphs, even when types don\'t match.
@@ -111,7 +111,7 @@ a → b = a
 
     -- OK, good.
     reindexPort (Port Boundary i) = Port Boundary (i + offset)
-    reindexPort (Port (Gen (t, e))  i) = Port (Gen (t, e + maxA)) i
+    reindexPort (Port (Gen (e, t))  i) = Port (Gen (e + maxA, t)) i
 
     -- NOTE: only called *after* matchBoundaries, so it will only get ports
     -- which will eventually connect to the boundary.

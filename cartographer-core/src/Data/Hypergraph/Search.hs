@@ -42,9 +42,9 @@ adjacent g (Port s _, Port t _) =
 
 -- | Input and output wires of a given hyperedge.
 wires
-  :: Ord (f (sig, HyperEdgeId))
+  :: Ord (f (HyperEdgeId, sig))
   => Hypergraph f sig
-  -> f (sig, HyperEdgeId)
+  -> f (HyperEdgeId, sig)
   -> ([Wire sig f], [Wire sig f])
 wires g fe = (inputs, outputs)
   where

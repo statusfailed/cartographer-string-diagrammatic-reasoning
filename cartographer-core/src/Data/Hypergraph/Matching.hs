@@ -82,7 +82,7 @@ update pattern context m pw@(p,q) cw@(p',q') = addEdges . addWires $ m
 matchPorts :: Port sig a Open -> Port sig a Open -> Matching sig -> Matching sig
 matchPorts (Port Boundary _) _ m = m
 matchPorts _ (Port Boundary _) m = m
-matchPorts (Port (Gen (_,a)) _) (Port (Gen (_,b)) _) m =
+matchPorts (Port (Gen (a, _)) _) (Port (Gen (b, _)) _) m =
   m { _matchingEdges = Bimap.insert a b (_matchingEdges m) }
 
 -- | What are the possible matches for a given wire?
@@ -119,10 +119,10 @@ determined pattern context m w@(s, t) =
     -- simply looking up the hyperedge ID.
     -- counterpart :: Port sig a Open -> Maybe (Port sig a Open)
     counterpart (Port Boundary _) = Nothing
-    counterpart (Port (Gen (_, e)) i)  = do
+    counterpart (Port (Gen (e, _)) i)  = do
       e' <- Bimap.lookup e (_matchingEdges m)
       t' <- Map.lookup e' (signatures context)
-      return (Port (Gen (t', e')) i)
+      return (Port (Gen (e', t')) i)
 
 -- If a wire is not uniquely determined by the current matching,
 -- this function will search for an appropriate unmatched wire
@@ -187,4 +187,4 @@ edgeTypeMatch pattern context (Port p _) (Port p' _) =
   case (p, p') of
     (Boundary, _)             -> True
     (_, Boundary)             -> False
-    (Gen (t1,_), Gen (t2,_))  -> t1 == t2
+    (Gen (_, t1), Gen (_, t2))  -> t1 == t2

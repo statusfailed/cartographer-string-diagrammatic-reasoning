@@ -1,4 +1,5 @@
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -86,18 +87,19 @@ instance Reifies Target PortRole where
 -- | Ports of a hyperedge.
 -- This is parametrised by f to allow ports to specify boundary ports as well
 -- as generator ports.
-data Port sig a f = Port (f (sig, HyperEdgeId)) Int
+data Port sig a f =
+  Port {-# UNPACK #-} !(f (HyperEdgeId, sig)) {-# UNPACK #-} !Int
 
 index :: Port sig a f -> Int
 index (Port _ i) = i
 
-hyperedge :: Port sig a f -> f (sig, HyperEdgeId)
+hyperedge :: Port sig a f -> f (HyperEdgeId, sig)
 hyperedge (Port f _) = f
 
-deriving instance Eq   (f (sig, HyperEdgeId)) => Eq (Port sig a f)
-deriving instance Ord  (f (sig, HyperEdgeId)) => Ord (Port sig a f)
-deriving instance Read (f (sig, HyperEdgeId)) => Read (Port sig a f)
-deriving instance Show (f (sig, HyperEdgeId)) => Show (Port sig a f)
+deriving instance Eq   (f (HyperEdgeId, sig)) => Eq (Port sig a f)
+deriving instance Ord  (f (HyperEdgeId, sig)) => Ord (Port sig a f)
+deriving instance Read (f (HyperEdgeId, sig)) => Read (Port sig a f)
+deriving instance Show (f (HyperEdgeId, sig)) => Show (Port sig a f)
 
 -- | Convert a 'Port sig a f' to a 'Proxy a'
 toProxy :: Port sig a f -> Proxy a
@@ -118,7 +120,7 @@ isBoundary (Port e _) = open True (const False) e
 
 toHyperEdgeId :: Port sig a Open -> Maybe HyperEdgeId
 toHyperEdgeId (Port Boundary _) = Nothing
-toHyperEdgeId (Port (Gen e) _)  = Just (snd e)
+toHyperEdgeId (Port (Gen e) _)  = Just (fst e)
 
 -- | The type of Hypergraphs, parametrised by the type of generators (sig).
 -- By using different types for "f" we can make this open or closed
@@ -144,11 +146,11 @@ data Hypergraph f sig = Hypergraph
 -- connection between a source and target 'Port'.
 type Wire sig f = (Port sig Source f, Port sig Target f)
 
-deriving instance (Eq sig  , Eq   (f (sig,HyperEdgeId))) => Eq (Hypergraph f sig)
-deriving instance (Ord sig , Ord  (f (sig,HyperEdgeId))) => Ord (Hypergraph f sig)
+deriving instance (Eq sig  , Eq   (f (HyperEdgeId, sig))) => Eq (Hypergraph f sig)
+deriving instance (Ord sig , Ord  (f (HyperEdgeId, sig))) => Ord (Hypergraph f sig)
 -- TODO: why do we need an Ord instance here?
 -- deriving instance (Read sig, Ord  (f HyperEdgeId), Read (f HyperEdgeId)) => Read (Hypergraph f sig)
-deriving instance (Show sig, Show (f (sig,HyperEdgeId))) => Show (Hypergraph f sig)
+deriving instance (Show sig, Show (f (HyperEdgeId, sig))) => Show (Hypergraph f sig)
 
 -- | The type of closed Hypergraphs, i.e. those hypergraphs with no "dangling
 -- wires".
@@ -226,8 +228,8 @@ singleton :: (Ord sig, Signature sig) => sig -> OpenHypergraph sig
 singleton s = Hypergraph conns (Map.singleton 0 s) 1 where
   (n, m) = toSize s
   conns = Bimap.fromList $
-    [ (Port Boundary i, Port (Gen (s,0)) i) | i <- [0..n-1] ] ++
-    [ (Port (Gen (s,0)) i, Port Boundary i) | i <- [0..m-1] ]
+    [ (Port Boundary i, Port (Gen (0, s)) i) | i <- [0..n-1] ] ++
+    [ (Port (Gen (0, s)) i, Port Boundary i) | i <- [0..m-1] ]
 
 -- | The number of inputs and outputs of a hypergraph.
 -- This is taken as one more than the maximum connected boundary port, or zero
@@ -261,7 +263,7 @@ signatureOf e hg = Map.lookup e (signatures hg)
 
 --- | Given a source or target port, get the Wire it belongs to.
 toWire
-  :: (Eq (f (sig,HyperEdgeId)), Ord (f (sig,HyperEdgeId)), Reifies a PortRole)
+  :: (Eq (f (HyperEdgeId, sig)), Ord (f (HyperEdgeId, sig)), Reifies a PortRole)
   => Port sig a f
   -> Hypergraph f sig
   -> Maybe (Port sig Source f, Port sig Target f)
@@ -273,13 +275,13 @@ toWire p@(Port e i) hg = case toPortRole p of
 
 -- | What is the /source/ port that connects to this /target/, if any?
 source
-  :: (Eq (f (sig,HyperEdgeId)), Ord (f (sig,HyperEdgeId)))
+  :: (Eq (f (HyperEdgeId, sig)), Ord (f (HyperEdgeId, sig)))
   => Port sig Target f -> Hypergraph f sig -> Maybe (Port sig Source f)
 source t = fmap fst . toWire t
 
 -- | What is the /target/ port that this /source/ connects to, if any?
 target
-  :: (Eq (f (sig,HyperEdgeId)), Ord (f (sig,HyperEdgeId)))
+  :: (Eq (f (HyperEdgeId, sig)), Ord (f (HyperEdgeId, sig)))
   => Port sig Source f -> Hypergraph f sig -> Maybe (Port sig Target f)
 target s = fmap snd . toWire s
 
@@ -288,7 +290,7 @@ target s = fmap snd . toWire s
 sourcePorts
   :: (Applicative f, Signature sig)
   => HyperEdgeId -> sig -> [Port sig Source f]
-sourcePorts e sig = fmap (Port (pure (sig, e))) [0..k - 1]
+sourcePorts e sig = fmap (Port (pure (e, sig))) [0..k - 1]
   where (_, k) = toSize sig
 
 -- | A list of all target (input) ports of a hyperedge with a particular
@@ -296,5 +298,5 @@ sourcePorts e sig = fmap (Port (pure (sig, e))) [0..k - 1]
 targetPorts
   :: (Applicative f, Signature sig)
   => HyperEdgeId -> sig -> [Port sig Target f]
-targetPorts e sig = fmap (Port (pure (sig, e))) [0..n - 1]
+targetPorts e sig = fmap (Port (pure (e, sig))) [0..n - 1]
   where (n, _) = toSize sig

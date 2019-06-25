@@ -43,10 +43,10 @@ prop_connectionsHavePorts :: OpenHypergraph Generator -> Bool
 prop_connectionsHavePorts g = all hasPorts (Bimap.toList $ connections g) where
   hasPorts (source, target) = hasSource source && hasTarget target
   hasSource (Port Boundary _) = True
-  hasSource (Port (Gen (t,e)) i) = (>i) . snd . toSize $ t
+  hasSource (Port (Gen (e, t)) i) = (>i) . snd . toSize $ t
 
   hasTarget (Port Boundary _) = True
-  hasTarget (Port (Gen (t,e)) i) = (>i) . fst . toSize $ t
+  hasTarget (Port (Gen (e, t)) i) = (>i) . fst . toSize $ t
 
 -- | The size of a "singleton" hypergraph is the same size as the one generator
 -- in that graph.
