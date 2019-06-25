@@ -43,7 +43,7 @@ matchProfile = do
       b = singleton (Generator (2,2))
       c = singleton (Generator (1,2))
       r = foldl' (→) empty (replicate 50000 $ c → a)
-      p = a → b → c
+      p = c → b → a
       g = r → p → r
   t0 <- getCurrentTime
   putStrLn ("mark: " ++ show t0)
@@ -52,7 +52,7 @@ matchProfile = do
   t1 <- getCurrentTime
   putStrLn ("mark: " ++ show t1)
 
-  print $ observe (match p g)
+  print . observe $ match p g
   t2 <- getCurrentTime
   putStrLn ("mark: " ++ show t2)
 
