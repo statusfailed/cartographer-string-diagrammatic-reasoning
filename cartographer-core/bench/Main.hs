@@ -6,6 +6,7 @@ import Control.Monad.Logic
 import Data.Hypergraph
 import Data.Time.Clock
 import Data.List (foldl')
+import Data.Maybe (fromJust)
 
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
@@ -22,6 +23,10 @@ instance Signature Generator where
 -- force evaluation of both maps in the hypergraph.
 graphSize :: OpenHypergraph sig -> (Int, Int)
 graphSize g = (Bimap.size (connections g), Map.size (signatures g))
+
+-- force evaluation of a matching by counting matched wires and edges
+matchingSize :: Matching a -> (Int, Int)
+matchingSize (Matching wires edges) = (Bimap.size wires, Bimap.size edges)
 
 constructThin :: Int -> (Int, Int)
 constructThin n = graphSize r
@@ -74,6 +79,20 @@ hugeThinMatch n = length . observeAll $ match r g
     r' = foldl' (→) empty (replicate n b)
     g = r' → r
 
+-- | Time to find the first match of a somewhat complicated pattern in a graph
+-- where that pattern is extremely common.
+homogenousMatch :: Int -> (Int, Int)
+homogenousMatch n = matchingSize . head $ match coherence context
+  where
+    -- the "coherence" subgraph
+    middle = fromJust $ permute [0,2,1,3]
+    coherence = (c <> c) → middle → (a <> a)
+    context = foldl' (→) empty (replicate n coherence)
+
+    a = singleton (Generator (2,1))
+    b = singleton (Generator (1,1))
+    c = singleton (Generator (1,2))
+
 main = do
   defaultMain
     [ bgroup "construct"
@@ -87,5 +106,6 @@ main = do
       [ bench "singletonThinMatch" $ nf singletonThinMatch 5000
       , bench "singletonWideMatch" $ nf singletonWideMatch 5000
       , bench "hugeThinMatch" $ nf singletonWideMatch 5000
+      , bench "homogenousMatch" $ nf homogenousMatch 100
       ]
     ]

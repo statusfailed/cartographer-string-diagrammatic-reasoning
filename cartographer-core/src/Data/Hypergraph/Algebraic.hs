@@ -6,6 +6,9 @@
 module Data.Hypergraph.Algebraic
   ( (→)
   , tensor
+  , permute
+  , identityN
+  , swap
   , OpenHypergraph(..)
   ) where
 
@@ -15,7 +18,7 @@ import Control.Category
 import Control.Arrow
 import Data.Monoid
 import Data.Maybe (catMaybes, isJust)
-import Data.List (foldl')
+import Data.List (foldl', sort)
 import Data.Reflection
 
 import Data.Hypergraph.Type as Hypergraph
@@ -115,3 +118,44 @@ a → b = a
     -- which will eventually connect to the boundary.
     reindexLeft (Port Boundary i) = Port Boundary (i - ao + ai)
     reindexLeft p = p
+
+-- | Create a permutation of wires. If the supplied argument is not a
+-- permutation, Nothing is returned.
+--
+-- TODO: test me!
+permute :: [Int] -> Maybe (OpenHypergraph a)
+permute ports
+  | isPermutation ports =
+      Just $ Hypergraph
+        { connections = Bimap.fromList (toWire <$> zip [0..] ports)
+        , signatures = Map.empty
+        , nextHyperEdgeId = 0
+        }
+  | otherwise = Nothing
+  where
+    toWire (i,j) = (Port Boundary i, Port Boundary j)
+    isPermutation = all (uncurry (==)) . zip [0..] . sort
+
+-- | the identity wire, tensored together n times.
+-- NOTE: uses unsafe fromJust.
+identityN :: Int -> OpenHypergraph a
+identityN n = case permute [0..n-1] of
+  Just g -> g
+  Nothing -> error "identityN (impossibly) failed"
+
+-- | Swap "bundles" of wires
+-- /swap k n/ creates a (k + n → k + n) graph, where the first k inputs connect
+-- to the last k outputs, and the last n inputs connect to the first n outputs.
+--
+-- for example, swap 1 1 == twist, and swap 2 1 is rendered below:
+--
+--  ────┐
+--  ──┐┌┼───
+--  ──┼┘└───
+--    └─────
+--
+swap :: Int -> Int -> OpenHypergraph a
+swap k n = case permute ([n .. m-1] ++ [0..n-1]) of
+  Just g -> g
+  Nothing -> error "swap (impossibly) failed"
+  where m = k + n
