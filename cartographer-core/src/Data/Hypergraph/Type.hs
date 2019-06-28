@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Data.Hypergraph.Type
   ( Signature(..)
   , HyperEdgeId(..)
@@ -39,6 +40,7 @@ module Data.Hypergraph.Type
   , signatureOf
   ) where
 
+import GHC.Generics
 import Data.Foldable hiding (null)
 import Control.Applicative (liftA2)
 
@@ -63,7 +65,7 @@ instance Integral a => Signature (a, a) where
 -- | Uniquely identify each edge of a hypergraph.
 -- NOTE: Does not say what the "shape" of each generator is.
 newtype HyperEdgeId = HyperEdgeId { unHyperEdgeId :: Int }
-  deriving(Eq, Ord, Read, Enum, Num)
+  deriving(Eq, Ord, Read, Enum, Num, Generic)
 
 instance Show HyperEdgeId where
   show (HyperEdgeId i) = show i
@@ -93,6 +95,7 @@ deriving instance Eq   (f HyperEdgeId) => Eq (Port a f)
 deriving instance Ord  (f HyperEdgeId) => Ord (Port a f)
 deriving instance Read (f HyperEdgeId) => Read (Port a f)
 deriving instance Show (f HyperEdgeId) => Show (Port a f)
+deriving instance Generic (f HyperEdgeId) => Generic (Port a f)
 
 -- | Convert a 'Port a f' to a 'Proxy a'
 toProxy :: Port a f -> Proxy a
@@ -144,6 +147,8 @@ deriving instance (Ord sig , Ord  (f HyperEdgeId)) => Ord (Hypergraph f sig)
 -- TODO: why do we need an Ord instance here?
 -- deriving instance (Read sig, Ord  (f HyperEdgeId), Read (f HyperEdgeId)) => Read (Hypergraph f sig)
 deriving instance (Show sig, Show (f HyperEdgeId)) => Show (Hypergraph f sig)
+deriving instance (Generic sig, Generic (f HyperEdgeId))
+  => Generic (Hypergraph f sig)
 
 -- | The type of closed Hypergraphs, i.e. those hypergraphs with no "dangling
 -- wires".
@@ -155,7 +160,7 @@ type ClosedHypergraph sig = Hypergraph Identity sig
 -- This type essentially extends the set of hyperedges with left boundary
 -- and a right boundary of arbitrary size.
 data Open a = Gen a | Boundary
-  deriving(Eq, Ord, Read, Show)
+  deriving(Eq, Ord, Read, Show, Generic)
 
 -- The obvious functor definition
 instance Functor Open where

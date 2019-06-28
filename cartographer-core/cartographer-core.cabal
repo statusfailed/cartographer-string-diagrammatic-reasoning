@@ -47,7 +47,7 @@ test-suite test
     -threaded
     -prof
     -fprof-auto
-    "-with-rtsopts=-N -p -s -h -i0.1"
+    --"-with-rtsopts=-N -p -s"
   other-modules:
     Data.Hypergraph.Test
     Data.Hypergraph.Test.Arbitrary
@@ -73,7 +73,7 @@ executable profiling
     -prof
     -fprof-auto
     -rtsopts
-    "-with-rtsopts=-N -p -s -h -i0.1"
+    --"-with-rtsopts=-N -p -s"
   hs-source-dirs:   profiling
   main-is:          Main.hs
   build-depends: base, bimap, cartographer-core, time, logict, containers, bimap
@@ -83,6 +83,10 @@ executable bench
   ghc-options:
     -O2
     -threaded
+    -prof
+    -fprof-auto
+    -rtsopts
+    --"-with-rtsopts=-N -p -s"
   hs-source-dirs:   bench
   main-is:          Main.hs
   build-depends:    base
@@ -91,4 +95,5 @@ executable bench
                   , containers
                   , time
                   , logict
+                  , deepseq
                   , criterion

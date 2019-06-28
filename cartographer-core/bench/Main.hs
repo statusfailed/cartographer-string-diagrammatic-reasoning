@@ -1,3 +1,7 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Main where
 
 import Criterion.Main
@@ -14,11 +18,26 @@ import qualified Data.Bimap as Bimap
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
+import GHC.Generics
+import Control.DeepSeq
+
 data Generator = Generator (Int, Int)
-  deriving(Eq, Ord, Read, Show)
+  deriving(Eq, Ord, Read, Show, Generic, NFData)
 
 instance Signature Generator where
   toSize (Generator x) = x
+
+instance NFData HyperEdgeId
+instance NFData a => NFData (Open a)
+instance (Generic (f HyperEdgeId), NFData (f HyperEdgeId)) => NFData (Port a f)
+
+-- Needed to deepseq graphs
+instance NFData (OpenHypergraph Generator) where
+  rnf (Hypergraph conns sigs n) =
+    rnf (Bimap.toList conns, Map.toList sigs, n)
+
+instance NFData (Matching Generator) where
+  rnf (Matching wires edges) = rnf (Bimap.toList wires, Bimap.toList edges)
 
 -- force evaluation of both maps in the hypergraph.
 graphSize :: OpenHypergraph sig -> (Int, Int)
@@ -106,6 +125,19 @@ main = do
       [ bench "singletonThinMatch" $ nf singletonThinMatch 5000
       , bench "singletonWideMatch" $ nf singletonWideMatch 5000
       , bench "hugeThinMatch" $ nf singletonWideMatch 5000
-      , bench "homogenousMatch" $ nf homogenousMatch 100
+      , let g = foldl' (→) empty (replicate 10000 coherence)
+        in  bench "homogenousMatch" $ nf (head . uncurry match) (coherence,g)
       ]
     ]
+
+-------------------------------
+-- Various graphs for benching with
+
+add = singleton (Generator (2,1))
+bit = singleton (Generator (1,1))
+copy = singleton (Generator (1,2))
+
+coherence = (copy <> copy) → middle → (add <> add)
+  where
+    -- the "coherence" subgraph
+    middle = fromJust $ permute [0,2,1,3]
