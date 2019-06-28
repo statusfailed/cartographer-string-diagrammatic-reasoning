@@ -62,6 +62,7 @@ import Data.Proxy
 class Signature a where
   toSize :: a -> (Int, Int)
 
+-- TODO: probably remove this instance.
 instance Integral a => Signature (a, a) where
   toSize (x, y) = (fromIntegral x, fromIntegral y)
 

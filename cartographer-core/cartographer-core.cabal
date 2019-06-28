@@ -24,6 +24,7 @@ library
                  , Data.Hypergraph.Algebraic
                  , Data.Hypergraph.Unsafe
                  , Data.Hypergraph.Matching
+                 , Data.Hypergraph.Rewriting
                  --, Data.Hypergraph.Match
                  --, Data.Hypergraph.Rewrite
                  , Data.Hypergraph.Traversal
@@ -54,6 +55,7 @@ test-suite test
     Data.Hypergraph.Test.Type
     Data.Hypergraph.Test.Algebraic
     Data.Hypergraph.Test.Match
+    Data.Hypergraph.Test.Rewriting
   build-depends:
       base
     , time

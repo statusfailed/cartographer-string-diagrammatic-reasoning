@@ -2,6 +2,7 @@ module Data.Hypergraph
   ( module Data.Hypergraph.Type
   , module Data.Hypergraph.Algebraic
   , module Data.Hypergraph.Matching
+  , module Data.Hypergraph.Rewriting
   {-, module Data.Hypergraph.Match-}
   {-, module Data.Hypergraph.Rewrite-}
   , module Data.Hypergraph.Traversal
@@ -19,6 +20,9 @@ import Data.Hypergraph.Algebraic
 
 -- Hypergraph pattern matching
 import Data.Hypergraph.Matching hiding (empty)
+
+-- Rewriting
+import Data.Hypergraph.Rewriting
 
 -- Extra traversals
 import Data.Hypergraph.Search
