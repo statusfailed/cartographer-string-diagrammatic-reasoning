@@ -1,4 +1,3 @@
-{-# LANGUAGE StrictData #-}
 {-# LANGUAGE PartialTypeSignatures  #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE FlexibleContexts       #-}
@@ -6,6 +5,7 @@
 {-# LANGUAGE TupleSections          #-}
 module Data.Hypergraph.Matching where
 
+import Control.DeepSeq
 import Control.Monad
 import Control.Monad.Logic
 import Control.Monad.Logic.Class
@@ -20,13 +20,18 @@ import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
 -- | Nondeterministically choose an item from the list.
-choice :: MonadLogic f => [a] -> f a
-choice = foldl' interleave mzero . fmap pure
+-- performs about the same as "foldl' interleave mzero" on very large patterns,
+-- but several orders of magnitude faster on very small patterns.
+choice :: (Functor t, Foldable t, MonadPlus f) => t a -> f a
+choice = msum . fmap pure
 
 data Matching a = Matching
   { _matchingWires :: Bimap (Wire Open) (Wire Open)
   , _matchingEdges :: Bimap HyperEdgeId HyperEdgeId
   } deriving(Eq, Ord, Show)
+
+instance NFData a => NFData (Matching a) where
+  rnf (Matching w e) = rnf (Bimap.toList w, Bimap.toList e)
 
 empty :: Matching a
 empty = Matching Bimap.empty Bimap.empty

@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 module Main where
 
 import Criterion.Main
@@ -26,18 +27,6 @@ data Generator = Generator (Int, Int)
 
 instance Signature Generator where
   toSize (Generator x) = x
-
-instance NFData HyperEdgeId
-instance NFData a => NFData (Open a)
-instance (Generic (f HyperEdgeId), NFData (f HyperEdgeId)) => NFData (Port a f)
-
--- Needed to deepseq graphs
-instance NFData (OpenHypergraph Generator) where
-  rnf (Hypergraph conns sigs n) =
-    rnf (Bimap.toList conns, Map.toList sigs, n)
-
-instance NFData (Matching Generator) where
-  rnf (Matching wires edges) = rnf (Bimap.toList wires, Bimap.toList edges)
 
 -- force evaluation of both maps in the hypergraph.
 graphSize :: OpenHypergraph sig -> (Int, Int)
@@ -69,49 +58,6 @@ constructWide n = graphSize r
     c = singleton (Generator (1,2))
     r = foldl' (<>) empty (replicate n $ c → a)
 
--- match a singleton sandwiched between two (2­→ 2) graphs.
-singletonThinMatch :: Int -> Int
-singletonThinMatch n = length . observeAll $ match b g
-  where
-    a = singleton (Generator (2,1))
-    b = singleton (Generator (2,2))
-    c = singleton (Generator (1,2))
-    r = foldl' (→) empty (replicate n $ c → a)
-    g = r → b → r
-
-singletonWideMatch :: Int -> Int
-singletonWideMatch n = length . observeAll $ match b g
-  where
-    a = singleton (Generator (2,1))
-    b = singleton (Generator (2,2))
-    c = singleton (Generator (1,2))
-    r = foldl' (<>) empty (replicate n $ c → a)
-    g = r <> b <> r
-
-hugeThinMatch :: Int -> Int
-hugeThinMatch n = length . observeAll $ match r g
-  where
-    a = singleton (Generator (2,1))
-    b = singleton (Generator (2,2))
-    c = singleton (Generator (1,2))
-    r  = foldl' (→) empty (replicate n $ c → a)
-    r' = foldl' (→) empty (replicate n b)
-    g = r' → r
-
--- | Time to find the first match of a somewhat complicated pattern in a graph
--- where that pattern is extremely common.
-homogenousMatch :: Int -> (Int, Int)
-homogenousMatch n = matchingSize . head $ match coherence context
-  where
-    -- the "coherence" subgraph
-    middle = fromJust $ permute [0,2,1,3]
-    coherence = (c <> c) → middle → (a <> a)
-    context = foldl' (→) empty (replicate n coherence)
-
-    a = singleton (Generator (2,1))
-    b = singleton (Generator (1,1))
-    c = singleton (Generator (1,2))
-
 main = do
   defaultMain
     [ bgroup "construct"
@@ -119,16 +65,61 @@ main = do
       , bench "constructWide" $ nf constructWide 10000
       , bench "constructThinAffine" $ nf constructWide 10000
       ]
-    -- TODO: these benchmarks include "build time" for the hypergraphs,
-    -- which we don't want.
     , bgroup "match"
-      [ bench "singletonThinMatch" $ nf singletonThinMatch 5000
-      , bench "singletonWideMatch" $ nf singletonWideMatch 5000
-      , bench "hugeThinMatch" $ nf singletonWideMatch 5000
-      , let g = foldl' (→) empty (replicate 10000 coherence)
-        in  bench "homogenousMatch" $ nf (head . uncurry match) (coherence,g)
+      [ bgroup "rare"
+        [ bgroup "compose"
+          [ surroundBench "noPartials" size (→) (copy → add) bit
+          , surroundBench
+              "manyPartials" size (→) (add → copy) (add → bit → copy)
+          ]
+        , bgroup "tensor"
+          [ surroundBench "noPartials" size (<>) (copy → add) bit
+          , surroundBench
+              "manyPartials" size (<>) (add → copy) (add → bit → copy)
+          ]
+        ]
+      , bgroup "bigPattern"
+        [ let pattern = foldl' (→) empty (replicate size bit)
+          in  surroundBench "bit" size (→) (copy → add) pattern
+        ]
+      , bgroup "homogenous"
+        [ homogenous "bit" (size*10) bit
+        , homogenous "coherence" (size*10) coherence
+        ]
       ]
     ]
+  where
+    size = 10000
+
+-- Time to find the first match of a somewhat complicated pattern in a graph
+-- where that pattern is extremely common.
+homogenous :: String -> Int -> OpenHypergraph Generator -> Benchmark
+homogenous name size pattern =
+  let g = foldl' (→) empty (replicate size pattern)
+  in  bench name $ nf (head . uncurry match) (pattern,g)
+
+-- construct a graph using size*2 repetitions of 'filler' where 'pattern' only
+-- occurs once (sandwiched between the fillers)
+surround
+  :: (OpenHypergraph a -> OpenHypergraph a -> OpenHypergraph a) -- ^ function to compose graphs
+  -> Int -- ^ size of filler on each side
+  -> OpenHypergraph a -- ^ filler graph
+  -> OpenHypergraph a -- ^ pattern to occur once
+  -> OpenHypergraph a
+surround (·) size filler pattern = g · pattern · g
+  where g = foldl' (·) empty (replicate size filler)
+
+surroundBench
+  :: (a ~ Generator)
+  => String
+  -> Int
+  -> (OpenHypergraph a -> OpenHypergraph a -> OpenHypergraph a)
+  -> OpenHypergraph a
+  -> OpenHypergraph a
+  -> Benchmark
+surroundBench name size (·) filler pattern =
+  let g = surround (<>) size filler pattern
+  in  bench name $ nf (head . uncurry match) (pattern, g)
 
 -------------------------------
 -- Various graphs for benching with

@@ -41,6 +41,8 @@ module Data.Hypergraph.Type
   ) where
 
 import GHC.Generics
+import Control.DeepSeq
+
 import Data.Foldable hiding (null)
 import Control.Applicative (liftA2)
 
@@ -67,6 +69,8 @@ instance Integral a => Signature (a, a) where
 newtype HyperEdgeId = HyperEdgeId { unHyperEdgeId :: Int }
   deriving(Eq, Ord, Read, Enum, Num, Generic)
 
+instance NFData HyperEdgeId
+
 instance Show HyperEdgeId where
   show (HyperEdgeId i) = show i
 
@@ -78,7 +82,9 @@ data Target
 -- We use this in Layout to determine if a Boundary is on the left or right of
 -- the diagram without having to repeat code for each type.
 data PortRole = Source | Target
-  deriving(Eq, Ord, Read, Show)
+  deriving(Eq, Ord, Read, Show, Generic)
+
+instance NFData PortRole
 
 instance Reifies Source PortRole where
   reflect _ = Source
@@ -96,6 +102,8 @@ deriving instance Ord  (f HyperEdgeId) => Ord (Port a f)
 deriving instance Read (f HyperEdgeId) => Read (Port a f)
 deriving instance Show (f HyperEdgeId) => Show (Port a f)
 deriving instance Generic (f HyperEdgeId) => Generic (Port a f)
+instance (Generic (f HyperEdgeId), NFData (f HyperEdgeId))
+  => NFData (Port a f)
 
 -- | Convert a 'Port a f' to a 'Proxy a'
 toProxy :: Port a f -> Proxy a
@@ -135,6 +143,10 @@ data Hypergraph f sig = Hypergraph
   , nextHyperEdgeId :: HyperEdgeId
   }
 
+instance (Generic (f HyperEdgeId), NFData a, NFData (f HyperEdgeId))
+  => NFData (Hypergraph f a) where
+  rnf (Hypergraph conns sigs n) = rnf (Bimap.toList conns, sigs, n)
+
 -- | The type of nodes of cartographer hypergraphs.
 --
 -- Because all nodes belong to exactly one source list and one target list (and
@@ -161,6 +173,8 @@ type ClosedHypergraph sig = Hypergraph Identity sig
 -- and a right boundary of arbitrary size.
 data Open a = Gen a | Boundary
   deriving(Eq, Ord, Read, Show, Generic)
+
+instance NFData a => NFData (Open a)
 
 -- The obvious functor definition
 instance Functor Open where

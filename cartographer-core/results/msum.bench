@@ -1,0 +1,70 @@
+benchmarking construct/constructThin
+time                 360.3 ms   (262.1 ms .. 457.0 ms)
+                     0.990 R²   (0.965 R² .. 1.000 R²)
+mean                 373.9 ms   (359.6 ms .. 398.3 ms)
+std dev              23.26 ms   (13.45 μs .. 28.12 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+benchmarking construct/constructWide
+time                 343.7 ms   (220.6 ms .. 449.2 ms)
+                     0.985 R²   (0.945 R² .. 1.000 R²)
+mean                 366.3 ms   (347.3 ms .. 392.8 ms)
+std dev              26.48 ms   (7.411 ms .. 35.39 ms)
+variance introduced by outliers: 20% (moderately inflated)
+
+benchmarking construct/constructThinAffine
+time                 381.8 ms   (343.4 ms .. 446.0 ms)
+                     0.996 R²   (0.995 R² .. 1.000 R²)
+mean                 359.0 ms   (351.1 ms .. 371.6 ms)
+std dev              12.20 ms   (2.162 ms .. 15.79 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+benchmarking match/rare/compose/noPartials
+time                 15.55 ms   (14.80 ms .. 16.28 ms)
+                     0.985 R²   (0.973 R² .. 0.994 R²)
+mean                 15.59 ms   (15.11 ms .. 16.54 ms)
+std dev              1.556 ms   (965.2 μs .. 2.797 ms)
+variance introduced by outliers: 48% (moderately inflated)
+
+benchmarking match/rare/compose/manyPartials
+time                 14.05 ms   (12.62 ms .. 15.49 ms)
+                     0.921 R²   (0.838 R² .. 0.974 R²)
+mean                 15.37 ms   (14.67 ms .. 16.68 ms)
+std dev              2.451 ms   (1.541 ms .. 4.004 ms)
+variance introduced by outliers: 71% (severely inflated)
+
+benchmarking match/rare/tensor/noPartials
+time                 15.86 ms   (13.96 ms .. 17.62 ms)
+                     0.893 R²   (0.781 R² .. 0.959 R²)
+mean                 17.53 ms   (16.19 ms .. 19.73 ms)
+std dev              4.285 ms   (2.875 ms .. 6.304 ms)
+variance introduced by outliers: 86% (severely inflated)
+
+benchmarking match/rare/tensor/manyPartials
+time                 15.47 ms   (14.80 ms .. 16.38 ms)
+                     0.980 R²   (0.961 R² .. 0.991 R²)
+mean                 15.41 ms   (14.83 ms .. 15.95 ms)
+std dev              1.360 ms   (1.042 ms .. 1.737 ms)
+variance introduced by outliers: 44% (moderately inflated)
+
+benchmarking match/bigPattern/bit
+time                 602.6 ms   (472.9 ms .. 751.0 ms)
+                     0.993 R²   (0.975 R² .. 1.000 R²)
+mean                 571.3 ms   (547.6 ms .. 597.3 ms)
+std dev              31.08 ms   (12.79 ms .. 40.00 ms)
+variance introduced by outliers: 19% (moderately inflated)
+
+benchmarking match/homogenous/bit
+time                 15.91 μs   (15.84 μs .. 15.98 μs)
+                     0.999 R²   (0.999 R² .. 1.000 R²)
+mean                 15.94 μs   (15.86 μs .. 16.03 μs)
+std dev              278.8 ns   (203.1 ns .. 446.7 ns)
+variance introduced by outliers: 15% (moderately inflated)
+
+benchmarking match/homogenous/coherence
+time                 138.9 μs   (130.6 μs .. 149.6 μs)
+                     0.952 R²   (0.934 R² .. 0.969 R²)
+mean                 142.0 μs   (131.9 μs .. 152.1 μs)
+std dev              31.61 μs   (27.95 μs .. 36.17 μs)
+variance introduced by outliers: 96% (severely inflated)
+
