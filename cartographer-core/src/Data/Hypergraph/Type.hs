@@ -27,6 +27,7 @@ module Data.Hypergraph.Type
   , Data.Hypergraph.Type.null
   , identity
   , twist
+  , dual
   , singleton
   , hypergraphSize
   , maxBoundaryPorts -- TODO: remove
@@ -232,6 +233,13 @@ twist = Hypergraph conns Map.empty 0 where
     [ (Port Boundary 0, Port Boundary 1)
     , (Port Boundary 1, Port Boundary 0)
     ]
+
+dual :: Ord (f HyperEdgeId) => (a -> b) -> Hypergraph f a -> Hypergraph f b
+dual f (Hypergraph conns sigs n) = Hypergraph conns' sigs' n
+  where
+    sigs' = fmap f sigs
+    conns' = Bimap.fromList . fmap swap . Bimap.toList $ conns
+    swap (Port x i, Port y j) = (Port y j, Port x i)
 
 -- | Given a generator and its type, create a hypergraph consisting of only
 -- that generator with its ports connected in order to the boundary.
