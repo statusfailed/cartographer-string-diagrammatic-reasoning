@@ -21,6 +21,13 @@ tests = testGroup "Data.Hypergraph.Type"
   , QC.testProperty "prop_connectionsHavePorts" prop_connectionsHavePorts 
   , QC.testProperty "prop_affineCompositionSize" prop_affineCompositionSize
   , QC.testProperty "prop_monoidalProductSize" prop_monoidalProductSize
+  , testGroup "duals"
+    [ QC.testProperty "prop_dualSwapsSize" prop_dualSwapsSize
+    , QC.testProperty "prop_dualPreservesNumberOfEdges"
+        prop_dualPreservesNumberOfEdges
+    , QC.testProperty "prop_dualPreservesNumberOfWires"
+        prop_dualPreservesNumberOfWires
+    ]
   ]
 
 prop_isComplete :: OpenHypergraph Generator -> Bool
@@ -70,3 +77,23 @@ prop_monoidalProductSize
 prop_monoidalProductSize a b =
   toSize (a <> b) == toSize a +++ toSize b
   where (a,b) +++ (c,d) = (a+c, b+d)
+
+-------------------------------
+-- test Duals
+
+prop_dualSwapsSize :: OpenHypergraph Generator -> Property
+prop_dualSwapsSize g = toSize g === (swap . toSize . dual opposite) g
+  where
+    swap (x,y) = (y, x)
+
+prop_dualPreservesNumberOfEdges :: OpenHypergraph Generator -> Property
+prop_dualPreservesNumberOfEdges g =
+  let n = Map.size (signatures g)
+      k = Map.size (signatures $ dual opposite g)
+  in  n === k
+
+prop_dualPreservesNumberOfWires :: OpenHypergraph Generator -> Property
+prop_dualPreservesNumberOfWires g =
+  let n = Bimap.size (connections g)
+      k = Bimap.size (connections $ dual opposite g)
+  in  n === k

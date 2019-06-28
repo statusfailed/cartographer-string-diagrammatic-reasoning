@@ -40,6 +40,9 @@ data Generator = Generator
   , generatorType :: (Int, Int)
   } deriving(Eq, Ord, Read, Show)
 
+opposite :: Generator -> Generator
+opposite (Generator flag (i,o)) = Generator flag (o, i)
+
 instance Signature Generator where
   toSize = generatorType
 
