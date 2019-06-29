@@ -87,6 +87,16 @@ main = do
         , homogenous "coherence" (size*10) coherence
         ]
       ]
+    , bgroup "rewrite"
+      [ bgroup "fullyReduce"
+        [ let p = bit
+              g = foldl' (→) empty (replicate size p)
+          in  bench "bit→identity" $ nf (rewriteUntilDone p identity) g
+        , let p = copy → add
+              g = foldl' (→) empty (replicate size p)
+          in  bench "copyadd→identity" $ nf (rewriteUntilDone p identity) g
+        ]
+      ]
     ]
   where
     size = 10000
@@ -120,6 +130,19 @@ surroundBench
 surroundBench name size (·) filler pattern =
   let g = surround (<>) size filler pattern
   in  bench name $ nf (head . uncurry match) (pattern, g)
+
+-- Try applying a rewrite rule until it doesn't match anymore
+rewriteUntilDone
+  :: Eq a
+  => OpenHypergraph a -- ^ LHS
+  -> OpenHypergraph a -- ^ RHS
+  -> OpenHypergraph a -- ^ graph to rewrite
+  -> OpenHypergraph a
+rewriteUntilDone lhs rhs ctx = go ctx
+  where
+    go g = case (observeMany 1 $ match lhs g) of
+      (m:_) -> go (rewrite m rhs g)
+      _     -> g
 
 -------------------------------
 -- Various graphs for benching with
