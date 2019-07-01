@@ -19,6 +19,8 @@ import Debug.Trace
 tests = testGroup "Data.Hypergraph.Rewrite"
   [ QC.testProperty "prop_rewriteSelfIdentity" prop_rewriteSelfIdentity
   , QC.testProperty "prop_rewriteSelfSelf" prop_rewriteSelfSelf
+  , QC.testProperty "prop_rewriteTypesMustMatch" prop_rewriteTypesMustMatch
+  , QC.testProperty "prop_rewriteIsComplete" prop_rewriteIsComplete
   ]
 
 -- Take integers (k, n) and an OpenHypergraph of size (k', n'), and return a
@@ -49,3 +51,32 @@ prop_rewriteSelfSelf g =
   let m = head (match g g)
       r = rewrite m g g
   in  (not . Prelude.null) (match g r :: [Matching Generator])
+
+-- This is kind of a boring test, it only checks that invalid matches don\'t
+-- crash 'rewrite'.
+-- TODO: rewriting a WHOLE graph works, even when types don't match up!
+--       Put l into a bigger context!
+prop_rewriteTypesMustMatch
+  :: Generator
+  -> Generator
+  -> Generator
+  -> Property
+prop_rewriteTypesMustMatch ctx lhs rhs =
+  let l = singleton lhs
+      r = singleton rhs
+      g = singleton ctx → l → singleton ctx
+      m = head (match l g)
+  in  toSize l /= toSize r ==> Nothing === rewrite' m r l
+
+-- | Rewriting should always preserve completeness
+prop_rewriteIsComplete
+  :: Generator
+  -> Generator
+  -> Generator
+  -> Bool
+prop_rewriteIsComplete fill l r =
+  let lhs = singleton l
+      rhs = singleton r
+      g = singleton fill → lhs → singleton fill
+      m = head (match lhs g)
+  in  maybe True isComplete (rewrite' m rhs g)

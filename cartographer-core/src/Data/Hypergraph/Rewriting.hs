@@ -1,8 +1,9 @@
 module Data.Hypergraph.Rewriting where
 
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isJust)
 import Data.List (foldl')
 import Control.Arrow ((***))
+import Control.Monad
 
 import Data.Hypergraph.Type
 import Data.Hypergraph.Matching (Matching(..))
@@ -28,21 +29,31 @@ unsafeDelete (Matching wires edges) g = g
 
 -- | 'unsafeSplice matching context value' fills "value" into the context graph
 -- at the boundary positions specified in the supplied matching.
-unsafeSplice
-  :: Matching a -> OpenHypergraph a -> OpenHypergraph a -> OpenHypergraph a
-unsafeSplice matching replacement context = context
-  { signatures =
-      foldl' (flip $ uncurry Map.insert) (signatures context) newEdges
-  , connections =
-      foldl' (flip $ uncurry Bimap.insert) (connections context) newWires
-  , nextHyperEdgeId = maxRep + maxCtx
-  }
+--
+-- If the matching is not valid, Nothing is returned.
+splice
+  :: Matching a       -- ^ A set of wires and edges
+  -> OpenHypergraph a -- ^ A replacement for the matching
+  -> OpenHypergraph a -- ^ the context of the matching
+  -> Maybe (OpenHypergraph a)
+splice matching replacement context = do
+  newWires <- mapM fixWire $ Bimap.toList (connections replacement)
+  -- verify that each boundary in the matching has a corresponding port in the
+  -- replacement.
+  -- TODO: this is kinda nasty, maybe there's a better way?
+  guard $ all (hasRhsWire . fst) (Bimap.toAscList $ _matchingWires matching)
+  return $ context
+    { signatures =
+        foldl' (flip $ uncurry Map.insert) (signatures context) newEdges
+    , connections =
+        foldl' (flip $ uncurry Bimap.insert) (connections context) newWires
+    , nextHyperEdgeId = maxRep + maxCtx
+    }
   where
     maxRep = nextHyperEdgeId replacement
     maxCtx = nextHyperEdgeId context
 
     newEdges = (\(e,s) -> (e+maxCtx, s)) <$> Map.toList (signatures replacement)
-    newWires = fixWire <$> Bimap.toList (connections replacement)
 
     toSource :: (Wire Open, Wire Open) -> (Port Source Open, Port Source Open)
     toSource ((s,_), (s', _)) = (s, s')
@@ -55,9 +66,15 @@ unsafeSplice matching replacement context = context
     sources = Bimap.fromList . fmap toSource $ wires
     targets = Bimap.fromList . fmap toTarget $ wires
 
+    hasRhsWire (s, t)
+      =  (not (isBoundary s) || f (Bimap.lookup  s (connections replacement)))
+      && (not (isBoundary t) || f (Bimap.lookupR t (connections replacement)))
+      where
+        f = isJust
+
     -- TODO: no more fromJust, boo!
-    fixWire :: Wire Open -> Wire Open
-    fixWire (s, t) = fromJust $ do
+    fixWire :: Wire Open -> Maybe (Wire Open)
+    fixWire (s, t) = do
       s' <- fixPort sources s
       t' <- fixPort targets t
       return (s', t')
@@ -67,10 +84,19 @@ unsafeSplice matching replacement context = context
 
 -- NOTE: this will fail if the matching is not a matching of the supplied
 -- pattern. Just expose as a Maybe value?
-rewrite
+rewrite'
   :: Matching a       -- ^ matching representing a "hole" in the graph
   -> OpenHypergraph a -- ^ replacement for the "hole"
   -> OpenHypergraph a -- ^ context in which to rewrite
-  -> OpenHypergraph a
-rewrite matching pattern =
-  unsafeSplice matching pattern . unsafeDelete matching
+  -> Maybe (OpenHypergraph a)
+rewrite' matching pattern =
+  splice matching pattern . unsafeDelete matching
+
+-- | Given a matching of some pattern, and a replacement for that pattern,
+-- delete the pattern from the context, and replace with the replacement.
+--
+-- If the matching is not of the same size as the replacement, the original
+-- context is returned, without rewriting.
+rewrite
+  :: Matching a -> OpenHypergraph a -> OpenHypergraph a -> OpenHypergraph a
+rewrite m p c = maybe c id $ rewrite' m p c
