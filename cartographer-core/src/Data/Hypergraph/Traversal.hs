@@ -42,22 +42,6 @@ inputWires hg e = case Map.lookup e (signatures hg) of
   Just sig -> catMaybes . fmap (flip toWire hg) $ targetPorts e sig
   Nothing  -> []
 
--- | A list of all source (output) ports of a hyperedge with a particular
--- signature.
-sourcePorts
-  :: (Applicative f, Signature sig)
-  => HyperEdgeId -> sig -> [Port Source f]
-sourcePorts e sig = fmap (Port (pure e)) [0..k - 1]
-  where (_, k) = toSize sig
-
--- | A list of all target (input) ports of a hyperedge with a particular
--- signature.
-targetPorts
-  :: (Applicative f, Signature sig)
-  => HyperEdgeId -> sig -> [Port Target f]
-targetPorts e sig = fmap (Port (pure e)) [0..n - 1]
-  where (n, _) = toSize sig
-
 -- | Breadth first traversal of wires
 wireBfs
   :: Signature sig

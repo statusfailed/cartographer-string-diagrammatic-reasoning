@@ -9,7 +9,6 @@ import qualified Data.Bimap as Bimap
 
 import Data.Hypergraph.Test.Arbitrary 
 import Data.Hypergraph
-import Data.Hypergraph.Traversal
 
 -------------------------------
 -- Tests

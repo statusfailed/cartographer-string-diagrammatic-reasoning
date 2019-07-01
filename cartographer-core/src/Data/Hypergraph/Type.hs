@@ -39,6 +39,8 @@ module Data.Hypergraph.Type
   , isComplete
   , edgeType
   , signatureOf
+  , sourcePorts
+  , targetPorts
   ) where
 
 import GHC.Generics
@@ -319,3 +321,19 @@ edgeType g = fmap (\e -> signatureOf e g)
 
 signatureOf :: HyperEdgeId -> Hypergraph f sig -> Maybe sig
 signatureOf e hg = Map.lookup e (signatures hg)
+
+-- | A list of all source (output) ports of a hyperedge with a particular
+-- signature.
+sourcePorts
+  :: (Applicative f, Signature sig)
+  => HyperEdgeId -> sig -> [Port Source f]
+sourcePorts e sig = fmap (Port (pure e)) [0..k - 1]
+  where (_, k) = toSize sig
+
+-- | A list of all target (input) ports of a hyperedge with a particular
+-- signature.
+targetPorts
+  :: (Applicative f, Signature sig)
+  => HyperEdgeId -> sig -> [Port Target f]
+targetPorts e sig = fmap (Port (pure e)) [0..n - 1]
+  where (n, _) = toSize sig

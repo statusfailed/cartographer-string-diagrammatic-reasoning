@@ -25,12 +25,7 @@ library
                  , Data.Hypergraph.Unsafe
                  , Data.Hypergraph.Matching
                  , Data.Hypergraph.Rewriting
-                 --, Data.Hypergraph.Match
-                 --, Data.Hypergraph.Rewrite
-                 , Data.Hypergraph.Traversal
                  , Data.Hypergraph.Search
-                 -- , Data.Hypergraph.Layer
-                 -- , Data.Hypergraph.Examples
   -- other-extensions:    
   ghc-options:
     -O2
