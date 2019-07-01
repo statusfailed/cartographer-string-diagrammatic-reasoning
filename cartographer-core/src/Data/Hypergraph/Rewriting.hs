@@ -39,8 +39,9 @@ splice
 splice matching replacement context = do
   newWires <- mapM fixWire $ Bimap.toList (connections replacement)
   -- verify that each boundary in the matching has a corresponding port in the
-  -- replacement.
-  -- TODO: this is kinda nasty, maybe there's a better way?
+  -- replacement (i.e., replacement isn't "too small" for matching, and size
+  -- matches LHS)
+  -- TODO: guard adds about 15-30% overhead, maybe there's a better way?
   guard $ all (hasRhsWire . fst) (Bimap.toAscList $ _matchingWires matching)
   return $ context
     { signatures =

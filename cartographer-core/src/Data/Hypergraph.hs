@@ -3,10 +3,7 @@ module Data.Hypergraph
   , module Data.Hypergraph.Algebraic
   , module Data.Hypergraph.Matching
   , module Data.Hypergraph.Rewriting
-  {-, module Data.Hypergraph.Match-}
-  {-, module Data.Hypergraph.Rewrite-}
   , module Data.Hypergraph.Traversal
-  {-, module Data.Hypergraph.Layer-}
   ) where
 
 -- Hypergraph type and basic functions
@@ -27,14 +24,5 @@ import Data.Hypergraph.Rewriting
 -- Extra traversals
 import Data.Hypergraph.Search
 
--- Hypergraph pattern matching
-{-import Data.Hypergraph.Match-}
-
--- Hypergraph rewriting
-{-import Data.Hypergraph.Rewrite-}
-
 -- Traversal
 import Data.Hypergraph.Traversal
-
--- Layering
-{-import Data.Hypergraph.Layer-}
