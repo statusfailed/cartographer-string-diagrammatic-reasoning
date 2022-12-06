@@ -1,13 +1,17 @@
-# 🗺️ Cartographer
+# :warning: This code is not actively maintained :warning:
 
-[Cartographer](cartographer.id) is a tool for the interactive editing of string diagrams.
+## 🗺️ Cartographer
+
+This repository is the implementation accompanying the paper
+[CARTOGRAPHER: A Tool for String Diagrammatic Reasoning](https://drops.dagstuhl.de/opus/volltexte/2019/11448/)
 
 Here are some things you can do:
 
-* Read the [user guide](http://cartographer.id/user-guide.html)
 * [Run the app](http://cartographer.id/app/)
+* Read the [user guide](http://cartographer.id/user-guide.html)
+* Read the [paper](https://drops.dagstuhl.de/opus/volltexte/2019/11448/pdf/LIPIcs-CALCO-2019-20.pdf)
 
-# Code
+### Code
 
 Cartographer consists of a library and a graphical frontend, both in this repository:
 
